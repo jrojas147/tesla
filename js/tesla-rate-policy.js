@@ -11,6 +11,7 @@
     fixedHighScoreNMV: 0.0119,
     highScoreThreshold: 800,
 
+    // No incluir 84 si no está parametrizado realmente.
     allowedTerms: [24, 36, 48, 60, 72],
 
     minFinancedAmount: 15000000,

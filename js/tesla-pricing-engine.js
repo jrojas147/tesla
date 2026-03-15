@@ -6,7 +6,7 @@
   var MESES_SEGURO_AUTO = 12;
   var TASA_SEGURO_DESEMPLEO = 0.055811;
   var TARIFA_SEGURO_VIDA_POR_MILLON = 1220;
-  var PLAZOS_SOPORTADOS = [24, 36, 48, 60, 72];
+  var PLAZOS_SOPORTADOS = [24, 36, 48, 60, 72, 84];
 
   function toNum(value, fallback) {
     var n = Number(value);
@@ -129,7 +129,8 @@
         36: parseMoneyFlexible(montoMaximosPorPlazo['36']),
         48: parseMoneyFlexible(montoMaximosPorPlazo['48']),
         60: parseMoneyFlexible(montoMaximosPorPlazo['60']),
-        72: parseMoneyFlexible(montoMaximosPorPlazo['72'])
+        72: parseMoneyFlexible(montoMaximosPorPlazo['72']),
+        84: parseMoneyFlexible(montoMaximosPorPlazo['84'])
       },
 
       nodo: toNum(raw.nodo, 0),
@@ -203,6 +204,17 @@
         error: {
           code: 'PLAZO_NO_SOPORTADO',
           message: 'El plazo ' + p + ' no es soportado por el motor.'
+        }
+      };
+    }
+
+    if (p === 84 && monto <= 0) {
+      return {
+        ok: false,
+        value: 0,
+        error: {
+          code: 'PLAZO_84_NO_PARAMETRIZADO',
+          message: '84 meses fue solicitado pero no está parametrizado.'
         }
       };
     }
@@ -404,6 +416,7 @@
       monto_max_48_tesla: toNum(config.montoMaximosPorPlazo[48], 0),
       monto_max_60_tesla: toNum(config.montoMaximosPorPlazo[60], 0),
       monto_max_72_tesla: toNum(config.montoMaximosPorPlazo[72], 0),
+      monto_max_84_tesla: toNum(config.montoMaximosPorPlazo[84], 0),
       cuota_inicial_minima_tesla: toNum(config.cuotaInicialMinimaPerfil, 0),
       seguro_desempleo_tesla: !!incluirDesempleo,
       seguro_todo_riesgo_tesla: !!incluirAuto
@@ -528,12 +541,6 @@
 
     var valorVehiculo = toNum(config.valorVehiculo, 0);
     var valorFinanciado = Math.max(0, valorVehiculo - cuotaInicial);
-
-    var montoMaxResult = getMontoMaxPorPlazo(config, plazo);
-    if (montoMaxResult.ok && montoMaxResult.value > 0 && valorFinanciado > montoMaxResult.value) {
-      valorFinanciado = montoMaxResult.value;
-      cuotaInicial = Math.max(restricciones.cuotaMinimaFinal, valorVehiculo - valorFinanciado);
-    }
 
     if (valorFinanciado < MONTO_FINANCIADO_MINIMO) {
       return {

@@ -11,6 +11,8 @@
   }
 
   var CONFIG = PricingEngine.buildConfig(RAW);
+  var FLOW_STATUS = RAW.flowStatus || {};
+
   var STATE = {
     session: {
       id: buildSessionId(),
@@ -40,7 +42,10 @@
       respuestaFinalRaw: CONFIG.respuestaFinalTesla,
       normalized: null,
       acceptFormId: null,
-      acceptFormReady: false
+      acceptFormReady: false,
+      blocked: !!FLOW_STATUS.flujoBloqueadoTesla,
+      blockedReason: FLOW_STATUS.motivoBloqueoFlujoTesla || '',
+      blockedStatus: FLOW_STATUS.estadoFlujoClienteTesla || ''
     },
     simulator: {
       plazosDisponibles: [],
@@ -74,8 +79,6 @@
   window.TESLA_STATE = STATE;
 
   var DOM = {};
-  var ACCEPT_FORM_SCRIPT_ID = 'hs-form-script-44539823-accept';
-  var REEVALUAR_FORM_SCRIPT_ID = 'hs-form-script-44539823-reevaluar';
 
   function q(id) {
     return document.getElementById(id);
@@ -101,12 +104,6 @@
     return '$' + new Intl.NumberFormat('es-CO').format(Math.round(Number(n) || 0));
   }
 
-  function fmtPctDecimal(n) {
-    var value = Number(n);
-    if (!Number.isFinite(value)) return '—';
-    return (value * 100).toFixed(2) + '%';
-  }
-
   function scrollTopNow() {
     window.scrollTo(0, 0);
   }
@@ -117,10 +114,12 @@
     DOM.page3 = q('page-3');
     DOM.page4 = q('page-4');
     DOM.page5 = q('page-5');
+    DOM.page6 = q('page-6');
 
     DOM.loginError = q('login-error');
     DOM.generalConfigError = q('general-config-error');
     DOM.acceptFormConfigError = q('accept-form-config-error');
+    DOM.reevaluarFormConfigError = q('reevaluar-form-config-error');
 
     DOM.inputDoc = q('input-doc');
     DOM.inputRn = q('input-rn');
@@ -156,8 +155,13 @@
     DOM.acceptFormContainer = q('accept-form-container');
     DOM.acceptFormFrame = q('accept-form-frame');
 
-    DOM.reevaluarFormFrame = q('reevaluar-form-frame');
     DOM.reevaluarFormContainer = q('reevaluar-form-container');
+    DOM.reevaluarFormFrame = q('reevaluar-form-frame');
+
+    DOM.blockedFlowTitle = q('blocked-flow-title');
+    DOM.blockedFlowDescription = q('blocked-flow-description');
+    DOM.blockedFlowStatus = q('blocked-flow-status');
+    DOM.blockedFlowReason = q('blocked-flow-reason');
 
     DOM.modal = q('tesla-confirm-modal');
     DOM.modalRespuestaFinal = q('modal-respuesta-final');
@@ -247,6 +251,7 @@
 
   function setBusy(button, isBusy, loadingText) {
     if (!button) return;
+
     if (typeof button.dataset.originalText === 'undefined' || button.dataset.originalText === '') {
       button.dataset.originalText = button.textContent;
     }
@@ -275,7 +280,8 @@
   }
 
   function mostrarPagina(pagina) {
-    var pages = [DOM.page1, DOM.page2, DOM.page3, DOM.page4, DOM.page5];
+    var pages = [DOM.page1, DOM.page2, DOM.page3, DOM.page4, DOM.page5, DOM.page6];
+
     for (var i = 0; i < pages.length; i++) {
       hide(pages[i]);
     }
@@ -285,6 +291,7 @@
     if (pagina === 3) show(DOM.page3);
     if (pagina === 4) show(DOM.page4);
     if (pagina === 5) show(DOM.page5);
+    if (pagina === 6) show(DOM.page6);
 
     STATE.ui.currentPage = pagina;
     actualizarStepper(pagina);
@@ -328,6 +335,7 @@
 
   function mostrarErrorGeneral(message, details) {
     show(DOM.generalConfigError);
+
     if (message) {
       DOM.generalConfigError.textContent = message;
     }
@@ -408,59 +416,38 @@
     return result;
   }
 
-  function ensureHubspotScript(scriptId) {
+  function waitForHubspotForms() {
     return new Promise(function (resolve, reject) {
-      var existing = document.getElementById(scriptId);
-      if (existing) {
-        if (window.hbspt) {
+      var attempts = 0;
+      var maxAttempts = 80;
+
+      function isReady() {
+        return !!(window.hbspt && window.hbspt.forms && typeof window.hbspt.forms.create === 'function');
+      }
+
+      if (isReady()) {
+        resolve();
+        return;
+      }
+
+      var timer = setInterval(function () {
+        attempts += 1;
+
+        if (isReady()) {
+          clearInterval(timer);
           resolve();
           return;
         }
 
-        var retries = 0;
-        var timer = setInterval(function () {
-          retries += 1;
-          if (window.hbspt) {
-            clearInterval(timer);
-            resolve();
-            return;
-          }
-          if (retries > 50) {
-            clearInterval(timer);
-            reject(new Error('HubSpot script cargado pero hbspt no está disponible.'));
-          }
-        }, 200);
-        return;
-      }
-
-      var script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://js.hsforms.net/forms/embed/44539823.js';
-      script.async = true;
-      script.onload = function () {
-        var retries = 0;
-        var timer = setInterval(function () {
-          retries += 1;
-          if (window.hbspt) {
-            clearInterval(timer);
-            resolve();
-            return;
-          }
-          if (retries > 50) {
-            clearInterval(timer);
-            reject(new Error('HubSpot script cargó pero hbspt no quedó disponible.'));
-          }
-        }, 200);
-      };
-      script.onerror = function () {
-        reject(new Error('No fue posible cargar el script de HubSpot Forms.'));
-      };
-
-      document.body.appendChild(script);
+        if (attempts >= maxAttempts) {
+          clearInterval(timer);
+          reject(new Error('HubSpot Forms no quedó disponible en window.hbspt.'));
+        }
+      }, 250);
     });
   }
 
-  function renderHubspotForm(targetEl, formId, scriptId) {
+  function renderHubspotForm(targetEl, formId) {
     return new Promise(function (resolve, reject) {
       if (!targetEl) {
         reject(new Error('No existe contenedor destino para el formulario.'));
@@ -472,13 +459,8 @@
         return;
       }
 
-      ensureHubspotScript(scriptId)
+      waitForHubspotForms()
         .then(function () {
-          if (!window.hbspt || !window.hbspt.forms || !window.hbspt.forms.create) {
-            reject(new Error('HubSpot Forms no está disponible en window.hbspt.'));
-            return;
-          }
-
           targetEl.innerHTML = '';
 
           var mountId = targetEl.id;
@@ -557,7 +539,7 @@
     show(DOM.acceptFormContainer);
     hide(DOM.acceptFormConfigError);
 
-    return renderHubspotForm(DOM.acceptFormFrame, STATE.flow.acceptFormId, ACCEPT_FORM_SCRIPT_ID)
+    return renderHubspotForm(DOM.acceptFormFrame, STATE.flow.acceptFormId)
       .then(function () {
         Logger.functional('Formulario de aceptación renderizado', {
           formId: STATE.flow.acceptFormId,
@@ -579,6 +561,8 @@
     var reevaluarFormId = RAW.forms && RAW.forms.reevaluar ? RAW.forms.reevaluar : '';
 
     if (!reevaluarFormId) {
+      if (DOM.reevaluarFormConfigError) show(DOM.reevaluarFormConfigError);
+      if (DOM.reevaluarFormContainer) hide(DOM.reevaluarFormContainer);
       Logger.configError('No existe formulario de reevaluación configurado', null);
       return Promise.reject(new Error('Formulario de reevaluación no configurado.'));
     }
@@ -588,17 +572,23 @@
       return Promise.reject(new Error('Contenedor de reevaluación no disponible.'));
     }
 
+    if (DOM.reevaluarFormContainer) show(DOM.reevaluarFormContainer);
+    if (DOM.reevaluarFormConfigError) hide(DOM.reevaluarFormConfigError);
+
     DOM.reevaluarFormFrame.setAttribute('data-form-id', reevaluarFormId);
     DOM.reevaluarFormFrame.setAttribute('data-region', 'na1');
     DOM.reevaluarFormFrame.setAttribute('data-portal-id', '44539823');
 
-    return renderHubspotForm(DOM.reevaluarFormFrame, reevaluarFormId, REEVALUAR_FORM_SCRIPT_ID)
+    return renderHubspotForm(DOM.reevaluarFormFrame, reevaluarFormId)
       .then(function () {
         Logger.functional('Formulario de reevaluación renderizado', {
           formId: reevaluarFormId
         });
       })
       .catch(function (err) {
+        if (DOM.reevaluarFormContainer) hide(DOM.reevaluarFormContainer);
+        if (DOM.reevaluarFormConfigError) show(DOM.reevaluarFormConfigError);
+
         Logger.configError('Error renderizando formulario de reevaluación', {
           formId: reevaluarFormId,
           error: err && err.message ? err.message : String(err)
@@ -608,36 +598,55 @@
   }
 
   function actualizarVisibilidadBotonReevaluar() {
-  var cuotaMinimaFinal = 0;
+    var cuotaMinimaFinal = 0;
 
-  if (
-    STATE.simulator &&
-    STATE.simulator.calculation &&
-    STATE.simulator.calculation.restricciones
-  ) {
-    cuotaMinimaFinal = Number(STATE.simulator.calculation.restricciones.cuotaMinimaFinal) || 0;
-  }
+    if (
+      STATE.simulator &&
+      STATE.simulator.calculation &&
+      STATE.simulator.calculation.restricciones
+    ) {
+      cuotaMinimaFinal = Number(STATE.simulator.calculation.restricciones.cuotaMinimaFinal) || 0;
+    }
 
-  var debeMostrar = cuotaMinimaFinal > 0;
+    var debeMostrar = cuotaMinimaFinal > 0;
 
-  if (!DOM.btnDesistir) {
-    Logger.warn('No existe btn-desistir para controlar visibilidad dinámica', {
-      cuotaMinimaFinal: cuotaMinimaFinal
+    if (!DOM.btnDesistir) {
+      Logger.warn('No existe btn-desistir para controlar visibilidad dinámica', {
+        cuotaMinimaFinal: cuotaMinimaFinal
+      });
+      return;
+    }
+
+    if (debeMostrar) {
+      show(DOM.btnDesistir);
+    } else {
+      hide(DOM.btnDesistir);
+    }
+
+    Logger.functional('Visibilidad botón re-evaluar actualizada', {
+      cuotaMinimaFinal: cuotaMinimaFinal,
+      visible: debeMostrar
     });
-    return;
   }
 
-  if (debeMostrar) {
-    show(DOM.btnDesistir);
-  } else {
-    hide(DOM.btnDesistir);
-  }
+  function renderBlockedFlowPage() {
+    setText(DOM.blockedFlowTitle, 'TU SOLICITUD SIGUE EN PROCESO');
+    setText(
+      DOM.blockedFlowDescription,
+      'Ya registramos una gestión previa sobre esta solicitud. No necesitas volver a diligenciar el flujo en este momento.'
+    );
+    setText(DOM.blockedFlowStatus, STATE.flow.blockedStatus || 'En proceso');
+    setText(
+      DOM.blockedFlowReason,
+      STATE.flow.blockedReason || 'Flujo ya gestionado previamente'
+    );
 
-  Logger.functional('Visibilidad botón re-evaluar actualizada', {
-    cuotaMinimaFinal: cuotaMinimaFinal,
-    visible: debeMostrar
-  });
-}
+    Logger.functional('Pantalla de flujo bloqueado renderizada', {
+      blocked: STATE.flow.blocked,
+      blockedStatus: STATE.flow.blockedStatus,
+      blockedReason: STATE.flow.blockedReason
+    });
+  }
 
   function renderValorVehiculo() {
     if (!DOM.step2ValorCarro) return;
@@ -686,6 +695,13 @@
       });
     }
 
+    if (String(CONFIG.plazo) === '84' && plazosDisponibles.indexOf(84) === -1) {
+      show(DOM.plazoConfigWarning);
+      Logger.configError('84 meses solicitado pero no parametrizado; se bloquea/remueve del flujo', {
+        plazoDefault: CONFIG.plazo,
+        plazosDisponibles: plazosDisponibles
+      });
+    }
   }
 
   function actualizarRestriccionesPorPlazo() {
@@ -759,22 +775,6 @@
     };
   }
 
-  var saveOfferConfigDebounceTimer = null;
-  var SAVE_OFFER_CONFIG_DEBOUNCE_MS = 1500;
-
-  function schedulePersistOfferConfig() {
-    if (saveOfferConfigDebounceTimer) {
-      clearTimeout(saveOfferConfigDebounceTimer);
-    }
-    saveOfferConfigDebounceTimer = setTimeout(function () {
-      saveOfferConfigDebounceTimer = null;
-      if (!STATE.simulator.snapshotOferta) return;
-      var persistenceConfig = RAW.persistence || {};
-      if (!persistenceConfig.enabled || (!persistenceConfig.saveOfferConfigUrl && !persistenceConfig.endpointUrl)) return;
-      TeslaPersistenceService.persistOfferConfig(STATE.simulator.snapshotOferta).catch(function () {});
-    }, SAVE_OFFER_CONFIG_DEBOUNCE_MS);
-  }
-
   function syncTeslaState(calculation) {
     STATE.simulator.selectedPlazo = calculation.plazo;
     STATE.simulator.selectedCuotaInicial = calculation.cuotaInicial;
@@ -785,57 +785,56 @@
     STATE.simulator.lastUpdatedAt = new Date().toISOString();
 
     window.TESLA_STATE = STATE;
-    schedulePersistOfferConfig();
   }
 
   function calcularYRenderizarOferta(sourceEvent) {
-  if (!DOM.rangeInicial || !DOM.inputPlazo) return;
+    if (!DOM.rangeInicial || !DOM.inputPlazo) return;
 
-  var calculationResult = PricingEngine.calcularOferta(CONFIG, {
-    plazo: Number(DOM.inputPlazo.value),
-    cuotaInicial: Number(DOM.rangeInicial.value),
-    incluirSeguroAuto: !!(DOM.checkAuto && DOM.checkAuto.checked),
-    incluirSeguroDesempleo: !!(DOM.checkDesempleo && DOM.checkDesempleo.checked)
-  });
-
-  if (!calculationResult.ok) {
-    Logger.calcError('Error al calcular oferta', {
-      sourceEvent: sourceEvent || null,
-      error: calculationResult.error
+    var calculationResult = PricingEngine.calcularOferta(CONFIG, {
+      plazo: Number(DOM.inputPlazo.value),
+      cuotaInicial: Number(DOM.rangeInicial.value),
+      incluirSeguroAuto: !!(DOM.checkAuto && DOM.checkAuto.checked),
+      incluirSeguroDesempleo: !!(DOM.checkDesempleo && DOM.checkDesempleo.checked)
     });
-    show(DOM.generalConfigError);
-    return;
-  }
 
-  hide(DOM.generalConfigError);
-
-  var data = calculationResult.data;
-  setText(DOM.valRangeLabel, fmtMoney(data.cuotaInicial));
-  setText(DOM.displayTasa, data.tasaMostrada);
-  setText(DOM.lblCapital, fmtMoney(data.capitalFinanciado));
-  setText(DOM.resBase, fmtMoney(data.cuotaBase));
-  setText(DOM.resVida, fmtMoney(data.seguros.valorSeguroVida));
-  setText(DOM.resAuto, fmtMoney(data.seguros.valorSeguroAuto));
-  setText(DOM.resDesempleo, fmtMoney(data.seguros.valorSeguroDesempleo));
-  setText(DOM.resTotal, fmtMoney(data.cuotaTotal));
-
-  syncTeslaState(data);
-  actualizarVisibilidadBotonReevaluar();
-
-  Logger.functional('Oferta recalculada', {
-    sourceEvent: sourceEvent || null,
-    calculation: data,
-    rateSummary: {
-      rateSource: data.rateSource,
-      tasaMostrada: data.tasaMostrada,
-      tasaFinalEA: data.tasaFinalEA,
-      motivoTasaFinal: data.motivoTasaFinal,
-      bucketCuotaPm: data.bucketCuotaPm,
-      bucketScorePm: data.bucketScorePm,
-      probabilidadMora: data.probabilidadMora
+    if (!calculationResult.ok) {
+      Logger.calcError('Error al calcular oferta', {
+        sourceEvent: sourceEvent || null,
+        error: calculationResult.error
+      });
+      show(DOM.generalConfigError);
+      return;
     }
-  });
-}
+
+    hide(DOM.generalConfigError);
+
+    var data = calculationResult.data;
+    setText(DOM.valRangeLabel, fmtMoney(data.cuotaInicial));
+    setText(DOM.displayTasa, data.tasaMostrada);
+    setText(DOM.lblCapital, fmtMoney(data.capitalFinanciado));
+    setText(DOM.resBase, fmtMoney(data.cuotaBase));
+    setText(DOM.resVida, fmtMoney(data.seguros.valorSeguroVida));
+    setText(DOM.resAuto, fmtMoney(data.seguros.valorSeguroAuto));
+    setText(DOM.resDesempleo, fmtMoney(data.seguros.valorSeguroDesempleo));
+    setText(DOM.resTotal, fmtMoney(data.cuotaTotal));
+
+    syncTeslaState(data);
+    actualizarVisibilidadBotonReevaluar();
+
+    Logger.functional('Oferta recalculada', {
+      sourceEvent: sourceEvent || null,
+      calculation: data,
+      rateSummary: {
+        rateSource: data.rateSource,
+        tasaMostrada: data.tasaMostrada,
+        tasaFinalEA: data.tasaFinalEA,
+        motivoTasaFinal: data.motivoTasaFinal,
+        bucketCuotaPm: data.bucketCuotaPm,
+        bucketScorePm: data.bucketScorePm,
+        probabilidadMora: data.probabilidadMora
+      }
+    });
+  }
 
   function openConfirmModal() {
     if (!STATE.simulator.calculation) {
@@ -856,6 +855,7 @@
 
     show(DOM.modal);
     STATE.ui.modalOpen = true;
+
     Logger.functional('Modal de confirmación abierto', {
       snapshotOferta: STATE.simulator.snapshotOferta
     });
@@ -971,6 +971,7 @@
         })
           .then(function (response) {
             clearTimeout(timer);
+
             if (!response.ok) {
               return response.text().then(function (text) {
                 throw {
@@ -980,6 +981,7 @@
                 };
               });
             }
+
             return response.json().catch(function () {
               return { ok: true };
             });
@@ -995,77 +997,6 @@
             reject({
               code: err && err.code ? err.code : 'PERSISTENCE_FETCH_ERROR',
               message: err && err.message ? err.message : 'Error desconocido persistiendo la decisión.',
-              detail: err
-            });
-          });
-      });
-    },
-
-    persistOfferConfig: function (snapshot) {
-      return new Promise(function (resolve, reject) {
-        var persistenceConfig = RAW.persistence || {};
-        var enabled = !!persistenceConfig.enabled;
-        var endpointUrl = persistenceConfig.saveOfferConfigUrl || persistenceConfig.endpointUrl || '';
-        var timeoutMs = Number(persistenceConfig.timeoutMs) || 12000;
-
-        if (!enabled || !endpointUrl) {
-          reject({
-            code: 'PERSISTENCE_NOT_CONFIGURED',
-            message: 'No existe endpoint para guardar configuración de oferta.'
-          });
-          return;
-        }
-
-        var payload = {
-          action: 'save_offer_config',
-          cliente_id_tesla: CONFIG.clienteId,
-          negocio_id_tesla: CONFIG.negocioId,
-          snapshot_oferta_tesla: snapshot,
-          metadata_sesion_tesla: {
-            session_id: STATE.session.id,
-            path: STATE.session.path,
-            query: STATE.session.query
-          }
-        };
-
-        var controller = new AbortController();
-        var timer = setTimeout(function () {
-          controller.abort();
-        }, timeoutMs);
-
-        fetch(endpointUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal
-        })
-          .then(function (response) {
-            clearTimeout(timer);
-            if (!response.ok) {
-              return response.text().then(function (text) {
-                throw {
-                  code: 'PERSISTENCE_HTTP_ERROR',
-                  status: response.status,
-                  responseBody: text
-                };
-              });
-            }
-            return response.json().catch(function () {
-              return { ok: true };
-            });
-          })
-          .then(function (data) {
-            Logger.functional('Configuración de oferta guardada en objeto personalizado', { negocioId: CONFIG.negocioId });
-            resolve({ ok: true, data: data });
-          })
-          .catch(function (err) {
-            clearTimeout(timer);
-            Logger.persistenceError('Error guardando configuración de oferta', err);
-            reject({
-              code: err && err.code ? err.code : 'PERSISTENCE_FETCH_ERROR',
-              message: err && err.message ? err.message : 'Error guardando oferta en objeto personalizado.',
               detail: err
             });
           });
@@ -1087,10 +1018,10 @@
           ok: false,
           error: err
         };
+
         Logger.persistenceError('Falló persistencia de decisión', err);
 
         var requireBeforeAdvance = !!(RAW.persistence && RAW.persistence.requireBeforeAdvance);
-
         if (requireBeforeAdvance) {
           throw err;
         }
@@ -1157,9 +1088,6 @@
       .then(function () {
         STATE.decision.status = 'submitted';
         STATE.decision.submittedAt = new Date().toISOString();
-        if (STATE.simulator.snapshotOferta && (RAW.persistence || {}).enabled) {
-          TeslaPersistenceService.persistOfferConfig(STATE.simulator.snapshotOferta).catch(function () {});
-        }
         closeConfirmModal();
         continuarFlujoAceptacion();
       })
@@ -1336,12 +1264,24 @@
   }
 
   function initCalculadora() {
-  renderValorVehiculo();
-  renderPlazosDisponibles();
-  actualizarRestriccionesPorPlazo();
-  calcularYRenderizarOferta('init');
-  actualizarVisibilidadBotonReevaluar();
-  bindCalculadoraEventos();
+    renderValorVehiculo();
+    renderPlazosDisponibles();
+    actualizarRestriccionesPorPlazo();
+    calcularYRenderizarOferta('init');
+    actualizarVisibilidadBotonReevaluar();
+    bindCalculadoraEventos();
+  }
+
+  function initBlockedFlowIfNeeded() {
+    Logger.technical('FLOW STATUS', FLOW_STATUS);
+
+    if (!STATE.flow.blocked) {
+      return false;
+    }
+
+    renderBlockedFlowPage();
+    mostrarPagina(6);
+    return true;
   }
 
   function init() {
@@ -1361,6 +1301,10 @@
 
     var ok = initConfiguracionYFlujo();
     if (!ok) return;
+
+    if (initBlockedFlowIfNeeded()) {
+      return;
+    }
 
     initCalculadora();
     mostrarPagina(2);
