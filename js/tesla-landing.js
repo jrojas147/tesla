@@ -335,12 +335,18 @@
   }
 
   function mostrarErrorGeneral(message, details) {
-    show(DOM.generalConfigError);
+    var msgStr = message ? String(message) : '';
+    var esErrorReconocida = msgStr.indexOf('reconocida') !== -1;
+    if (RAW.mostrarOferta === true && esErrorReconocida) {
+      Logger.warn('Oferta válida (mostrarOferta=true); no se cambia a login.', { message: message });
+      if (DOM.loginError) hide(DOM.loginError);
+      return;
+    }
 
+    show(DOM.generalConfigError);
     if (message) {
       DOM.generalConfigError.textContent = message;
     }
-
     if (DOM.page2) hide(DOM.page2);
     if (DOM.page1) show(DOM.page1);
     if (DOM.loginError) show(DOM.loginError);
@@ -373,8 +379,24 @@
   }
 
   function resolverFlujoPorRespuestaFinal() {
-    var raw = String(CONFIG.respuestaFinalTesla || '').trim();
-    var normalized = raw.toLowerCase().replace(/\s+/g, ' ');
+    var configValue = CONFIG.respuestaFinalTesla;
+    var rawValue = configValue != null && configValue !== '' ? configValue : (RAW.respuestaFinalTesla != null && RAW.respuestaFinalTesla !== '' ? RAW.respuestaFinalTesla : '');
+    var raw = String(rawValue).trim();
+    var normalized = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+    var rawUpper = raw.toUpperCase();
+
+    Logger.technical('REFERIDO_DEBUG entrada', {
+      CONFIG_respuestaFinalTesla: configValue,
+      RAW_respuestaFinalTesla: RAW.respuestaFinalTesla,
+      rawUsado: raw,
+      rawLength: raw.length,
+      normalized: normalized,
+      rawUpper: rawUpper,
+      checkReferidoExact: normalized === 'referido',
+      checkReferidIndexOf: normalized.indexOf('referid'),
+      checkRawUpperIndexOf: rawUpper.indexOf('REFERIDO'),
+      versionResolver: 'v2-referido'
+    });
 
     var result = {
       raw: raw,
@@ -388,6 +410,19 @@
 
     if (!raw) {
       result.reason = 'RESPUESTA_FINAL_VACIA';
+      Logger.technical('REFERIDO_DEBUG salida', { reason: result.reason, rawVacio: true });
+      return result;
+    }
+
+    if (normalized === 'referido' || normalized.indexOf('referid') !== -1 || rawUpper.indexOf('REFERIDO') !== -1) {
+      result.normalized = 'referido';
+      result.acceptFormId = (RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.referido) || '';
+      result.acceptTitle = 'FLUJO REFERIDO';
+      result.acceptDescription = 'Tu solicitud ha sido referida. Continúa con la información necesaria para tu crédito de vehículo.';
+      result.flowBadge = 'Flujo referido';
+      result.canAccept = !!result.acceptFormId;
+      result.reason = result.canAccept ? null : 'FORM_REFERIDO_NO_CONFIGURADO';
+      Logger.technical('REFERIDO_DEBUG salida', { matched: 'referido', normalized: result.normalized });
       return result;
     }
 
@@ -413,6 +448,17 @@
       return result;
     }
 
+    if (rawUpper.indexOf('REFERIDO') !== -1) {
+      result.normalized = 'referido';
+      result.flowBadge = 'Flujo referido';
+      result.acceptTitle = 'FLUJO REFERIDO';
+      result.acceptDescription = 'Tu solicitud ha sido referida. Continúa con la información necesaria para tu crédito de vehículo.';
+      result.reason = null;
+      Logger.technical('REFERIDO_DEBUG salida', { matched: 'referido_fallback', normalized: result.normalized });
+      return result;
+    }
+
+    Logger.technical('REFERIDO_DEBUG salida', { matched: 'ninguno', reason: 'RESPUESTA_FINAL_NO_RECONOCIDA', raw: raw, normalized: normalized });
     result.reason = 'RESPUESTA_FINAL_NO_RECONOCIDA';
     return result;
   }
@@ -1395,15 +1441,40 @@
       return false;
     }
 
-    var flowResult = resolverFlujoPorRespuestaFinal();
-    Logger.technical('resolverFlujoPorRespuestaFinal', flowResult);
+    var esReferidoPorConfig = RAW.esReferido === true || (typeof RAW.esReferido === 'string' && RAW.esReferido.toLowerCase() === 'true');
+    var respuestaRaw = String(CONFIG.respuestaFinalTesla || RAW.respuestaFinalTesla || '').trim();
+    var esReferidoPorTexto = respuestaRaw.toUpperCase().indexOf('REFERIDO') !== -1;
+    var esReferido = esReferidoPorConfig || esReferidoPorTexto;
 
-    if (flowResult.normalized === 'desconocido') {
-      mostrarErrorGeneral(
-        'La respuesta final de la oferta no es reconocida por el flujo.',
-        flowResult
-      );
-      return false;
+    var flowResult;
+    if (esReferido) {
+      flowResult = {
+        raw: respuestaRaw,
+        normalized: 'referido',
+        acceptFormId: (RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.referido) || '',
+        acceptTitle: 'FLUJO REFERIDO',
+        acceptDescription: 'Tu solicitud ha sido referida. Continúa con la información necesaria para tu crédito de vehículo.',
+        flowBadge: 'Flujo referido',
+        canAccept: !!(RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.referido)
+      };
+      Logger.technical('REFERIDO detectado al inicio', flowResult);
+    } else {
+      flowResult = resolverFlujoPorRespuestaFinal();
+      Logger.technical('resolverFlujoPorRespuestaFinal', flowResult);
+      if (flowResult.normalized === 'desconocido') {
+        var rawDesconocido = String(flowResult.raw || respuestaRaw || '').trim();
+        var esReferidoDesconocido = rawDesconocido.toUpperCase().indexOf('REFERIDO') !== -1;
+        flowResult = {
+          raw: rawDesconocido,
+          normalized: esReferidoDesconocido ? 'referido' : 'otro',
+          acceptFormId: '',
+          acceptTitle: esReferidoDesconocido ? 'FLUJO REFERIDO' : 'CONTINÚA CON TU SOLICITUD',
+          acceptDescription: esReferidoDesconocido ? 'Tu solicitud ha sido referida. Continúa con la información necesaria para tu crédito de vehículo.' : 'Continúa registrando la información necesaria para obtener tu crédito de vehículo.',
+          flowBadge: esReferidoDesconocido ? 'Flujo referido' : (rawDesconocido || 'Otro'),
+          canAccept: false
+        };
+        Logger.technical('Flujo desconocido tratado como oferta', flowResult);
+      }
     }
 
     configurarFormularioAceptacion(flowResult);
@@ -1431,11 +1502,23 @@
     return true;
   }
 
+  var initAlreadyRun = false;
+
   function init() {
+    if (initAlreadyRun) {
+      Logger.warn('init ya ejecutado, se omite segunda llamada', null);
+      return;
+    }
+    initAlreadyRun = true;
+
     captureDom();
     clearDebugBox();
 
     Logger.technical('INIT RAW', RAW);
+
+    if (RAW.mostrarOferta && DOM.loginError) {
+      hide(DOM.loginError);
+    }
 
     initLoginButton();
     bindBotones();
@@ -1454,12 +1537,16 @@
     }
 
     initCalculadora();
+    if (DOM.loginError) hide(DOM.loginError);
     mostrarPagina(2);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  function runInitWhenReady() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      setTimeout(init, 0);
+    }
   }
+  runInitWhenReady();
 })();

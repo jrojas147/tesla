@@ -187,7 +187,8 @@
   and tasa_mayor_50_raw
 %}
 
-{% set mostrar_oferta = cliente_valido and negocio_valido %}
+{% set respuesta_es_referido = respuesta_final_tesla and 'REFERIDO' in (respuesta_final_tesla|upper|string) %}
+{% set mostrar_oferta = (cliente_valido and negocio_valido) or (respuesta_es_referido and cliente_valido and negocio_encontrado) %}
 {% set mostrar_error = cedula_q and rn_q and not mostrar_oferta %}
 
 {% set nombre_cliente = "" %}
@@ -596,10 +597,11 @@
 <script>
   window.TESLA_CONFIG = {
     mostrarOferta: {{ "true" if mostrar_oferta else "false" }},
+    esReferido: {{ "true" if respuesta_final_tesla and 'REFERIDO' in (respuesta_final_tesla|upper|string) else "false" }},
 
     clienteId: "{{ cliente.id if cliente_encontrado else '' }}",
     negocioId: "{{ negocio.id if negocio_encontrado else '' }}",
-    respuestaFinalTesla: "{{ respuesta_final_tesla|escapejs }}",
+    respuestaFinalTesla: "{% if respuesta_es_referido %}PREAPROBADO{% else %}{{ respuesta_final_tesla|escapejs }}{% endif %}",
 
     valorVehiculo: {{ valor_vehiculo }},
     valorFinanciar: {{ valor_financiar }},
@@ -668,7 +670,7 @@
 <script src="https://js.hsforms.net/forms/embed/44539823.js" defer></script>
 <script src="{{ get_asset_url('/Tesla/js/tesla-rate-policy.js') }}"></script>
 <script src="{{ get_asset_url('/Tesla/js/tesla-pricing-engine.js') }}"></script>
-<script src="{{ get_asset_url('/Tesla/js/tesla-landing.js') }}"></script>
+<script src="{{ get_asset_url('/Tesla/js/tesla-landing.js') }}?v=referido2"></script>
 
 </body>
 </html>
