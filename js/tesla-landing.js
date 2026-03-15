@@ -119,6 +119,7 @@
     DOM.loginError = q('login-error');
     DOM.generalConfigError = q('general-config-error');
     DOM.acceptFormConfigError = q('accept-form-config-error');
+    DOM.acceptFormErrorDetail = q('accept-form-error-detail');
     DOM.reevaluarFormConfigError = q('reevaluar-form-config-error');
 
     DOM.inputDoc = q('input-doc');
@@ -447,6 +448,40 @@
     });
   }
 
+  function loadHubspotFormsScriptIfNeeded() {
+    if (window.hbspt && window.hbspt.forms && typeof window.hbspt.forms.create === 'function') {
+      return Promise.resolve();
+    }
+    return new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.charset = 'utf-8';
+      script.type = 'text/javascript';
+      script.src = 'https://js.hsforms.net/forms/embed/44539823.js';
+      script.onload = function () {
+        var attempts = 0;
+        var t = setInterval(function () {
+          attempts++;
+          if (window.hbspt && window.hbspt.forms && typeof window.hbspt.forms.create === 'function') {
+            clearInterval(t);
+            resolve();
+          } else if (attempts >= 40) {
+            clearInterval(t);
+            reject(new Error('HubSpot Forms no disponible tras cargar el script.'));
+          }
+        }, 250);
+      };
+      script.onerror = function () {
+        reject(new Error('No se pudo cargar el script de formularios de HubSpot.'));
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  function frameHasFormContent(targetEl) {
+    if (!targetEl) return false;
+    return targetEl.querySelector('.hs-form') || targetEl.querySelector('iframe') || targetEl.children.length > 0;
+  }
+
   function renderHubspotForm(targetEl, formId) {
     return new Promise(function (resolve, reject) {
       if (!targetEl) {
@@ -454,28 +489,37 @@
         return;
       }
 
-      if (!formId) {
+      var formIdStr = formId ? String(formId).trim() : '';
+      if (!formIdStr) {
         reject(new Error('No existe formId para renderizar el formulario.'));
         return;
       }
 
-      waitForHubspotForms()
-        .then(function () {
-          targetEl.innerHTML = '';
+      targetEl.setAttribute('data-form-id', formIdStr);
+      targetEl.setAttribute('data-region', 'na1');
+      targetEl.setAttribute('data-portal-id', '44539823');
 
+      waitForHubspotForms()
+        .catch(function () {
+          return loadHubspotFormsScriptIfNeeded();
+        })
+        .then(function () {
+          if (frameHasFormContent(targetEl)) {
+            resolve();
+            return;
+          }
+          targetEl.innerHTML = '';
           var mountId = targetEl.id;
           if (!mountId) {
             mountId = 'hs-form-mount-' + Math.random().toString(36).slice(2, 8);
             targetEl.id = mountId;
           }
-
           window.hbspt.forms.create({
             region: 'na1',
             portalId: '44539823',
-            formId: formId,
+            formId: formIdStr,
             target: '#' + mountId
           });
-
           resolve();
         })
         .catch(reject);
@@ -503,12 +547,19 @@
     if (!flowResult.canAccept) {
       hide(DOM.acceptFormContainer);
       show(DOM.acceptFormConfigError);
-
+      if (DOM.acceptFormErrorDetail) {
+        DOM.acceptFormErrorDetail.textContent = 'No hay formId configurado para este flujo (aprobado/preaprobado). Revisa forms.aceptar en la plantilla.';
+        DOM.acceptFormErrorDetail.classList.remove('hide');
+      }
       Logger.configError('Flujo sin formulario de aceptación configurado', flowResult);
       return;
     }
 
     hide(DOM.acceptFormConfigError);
+    if (DOM.acceptFormErrorDetail) {
+      DOM.acceptFormErrorDetail.textContent = '';
+      DOM.acceptFormErrorDetail.classList.add('hide');
+    }
     show(DOM.acceptFormContainer);
 
     if (DOM.acceptFormFrame) {
@@ -527,19 +578,26 @@
     if (!STATE.flow.acceptFormReady || !STATE.flow.acceptFormId) {
       show(DOM.acceptFormConfigError);
       hide(DOM.acceptFormContainer);
-
+      if (DOM.acceptFormErrorDetail) {
+        DOM.acceptFormErrorDetail.textContent = 'FormId: ' + (STATE.flow.acceptFormId || '(vacío)') + '. Portal: 44539823. Comprueba que el formulario existe en HubSpot.';
+        DOM.acceptFormErrorDetail.classList.remove('hide');
+      }
       Logger.configError('No se puede renderizar formulario de aceptación', {
         acceptFormReady: STATE.flow.acceptFormReady,
         acceptFormId: STATE.flow.acceptFormId
       });
-
       return Promise.reject(new Error('Formulario de aceptación no configurado.'));
     }
 
     show(DOM.acceptFormContainer);
     hide(DOM.acceptFormConfigError);
+    if (DOM.acceptFormErrorDetail) {
+      DOM.acceptFormErrorDetail.textContent = '';
+      DOM.acceptFormErrorDetail.classList.add('hide');
+    }
 
-    return renderHubspotForm(DOM.acceptFormFrame, STATE.flow.acceptFormId)
+    var formIdStr = String(STATE.flow.acceptFormId);
+    return renderHubspotForm(DOM.acceptFormFrame, formIdStr)
       .then(function () {
         Logger.functional('Formulario de aceptación renderizado', {
           formId: STATE.flow.acceptFormId,
@@ -549,6 +607,10 @@
       .catch(function (err) {
         hide(DOM.acceptFormContainer);
         show(DOM.acceptFormConfigError);
+        if (DOM.acceptFormErrorDetail) {
+          DOM.acceptFormErrorDetail.textContent = 'FormId: ' + (STATE.flow.acceptFormId || '') + '. Portal: 44539823. ' + (err && err.message ? err.message : '');
+          DOM.acceptFormErrorDetail.classList.remove('hide');
+        }
         Logger.configError('Error renderizando formulario de aceptación', {
           formId: STATE.flow.acceptFormId,
           error: err && err.message ? err.message : String(err)
@@ -926,23 +988,29 @@
       return new Promise(function (resolve, reject) {
         var persistenceConfig = RAW.persistence || {};
         var enabled = !!persistenceConfig.enabled;
-        var endpointUrl = persistenceConfig.endpointUrl || '';
+        var endpointUrl = (persistenceConfig.endpointUrl || '').trim();
+        var guardarOfertaFormId = (persistenceConfig.guardarOfertaFormId || '').trim();
         var timeoutMs = Number(persistenceConfig.timeoutMs) || 12000;
 
         Logger.technical('persistDecision called', {
           enabled: enabled,
           endpointUrl: endpointUrl ? '[configured]' : '[empty]',
+          guardarOfertaFormId: guardarOfertaFormId ? '[configured]' : '[empty]',
           timeoutMs: timeoutMs,
           payload: payload
         });
 
-        if (!enabled || !endpointUrl) {
+        var useEndpoint = enabled && endpointUrl;
+        var useForm = !!guardarOfertaFormId;
+
+        if (!useEndpoint && !useForm) {
           reject({
             code: 'PERSISTENCE_NOT_CONFIGURED',
-            message: 'No existe endpoint de persistencia configurado.',
+            message: 'No existe endpoint de persistencia ni formulario guardar oferta configurado.',
             contract: {
               method: 'POST',
               endpoint: 'RAW.persistence.endpointUrl',
+              guardarOfertaFormId: 'RAW.persistence.guardarOfertaFormId',
               contentType: 'application/json',
               expectedBody: {
                 cliente_id_tesla: 'string',
@@ -956,47 +1024,122 @@
           return;
         }
 
-        var controller = new AbortController();
-        var timer = setTimeout(function () {
-          controller.abort();
+        if (useEndpoint) {
+          var controller = new AbortController();
+          var timer = setTimeout(function () {
+            controller.abort();
+          }, timeoutMs);
+
+          fetch(endpointUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          })
+            .then(function (response) {
+              clearTimeout(timer);
+
+              if (!response.ok) {
+                return response.text().then(function (text) {
+                  throw {
+                    code: 'PERSISTENCE_HTTP_ERROR',
+                    status: response.status,
+                    responseBody: text
+                  };
+                });
+              }
+
+              return response.json().catch(function () {
+                return { ok: true };
+              });
+            })
+            .then(function (data) {
+              resolve({
+                ok: true,
+                data: data
+              });
+            })
+            .catch(function (err) {
+              clearTimeout(timer);
+              reject({
+                code: err && err.code ? err.code : 'PERSISTENCE_FETCH_ERROR',
+                message: err && err.message ? err.message : 'Error desconocido persistiendo la decisión.',
+                detail: err
+              });
+            });
+          return;
+        }
+
+        var formUrl = 'https://api.hsforms.com/submissions/v3/integration/submit/44539823/' + guardarOfertaFormId;
+        var objectTypeId = (persistenceConfig.guardarOfertaObjectTypeId || '0-1').trim();
+        var tasaVal = payload.tasa_mostrada_tesla != null ? payload.tasa_mostrada_tesla : (payload.tasa_normalizada_tesla != null ? payload.tasa_normalizada_tesla : '');
+        var formFields = [
+          { objectTypeId: objectTypeId, name: 'cuota_inicial_seleccionada', value: String(payload.cuota_inicial_seleccionada_tesla != null ? payload.cuota_inicial_seleccionada_tesla : '') },
+          { objectTypeId: objectTypeId, name: 'tasa_selecionada', value: String(tasaVal) },
+          { objectTypeId: objectTypeId, name: 'plazo_seleccionado_tesla', value: String(payload.plazo_seleccionado_tesla != null ? payload.plazo_seleccionado_tesla : '') },
+          { objectTypeId: objectTypeId, name: 'decision_cliente', value: String(payload.decision_cliente_tesla != null ? payload.decision_cliente_tesla : '') },
+          { objectTypeId: objectTypeId, name: 'negocio_id_tesla', value: String(payload.negocio_id_tesla != null ? payload.negocio_id_tesla : '') }
+        ];
+        var formBody = {
+          fields: formFields,
+          context: {
+            pageUri: window.location.href || '',
+            pageName: document.title || window.location.pathname || 'Tesla Oferta'
+          }
+        };
+
+        var controllerForm = new AbortController();
+        var timerForm = setTimeout(function () {
+          controllerForm.abort();
         }, timeoutMs);
 
-        fetch(endpointUrl, {
+        fetch(formUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload),
-          signal: controller.signal
+          body: JSON.stringify(formBody),
+          signal: controllerForm.signal
         })
           .then(function (response) {
-            clearTimeout(timer);
+            clearTimeout(timerForm);
 
-            if (!response.ok) {
-              return response.text().then(function (text) {
+            return response.text().then(function (text) {
+              if (!response.ok) {
+                var errPayload;
+                try {
+                  errPayload = JSON.parse(text);
+                } catch (e) {
+                  errPayload = { message: text, errors: [] };
+                }
                 throw {
-                  code: 'PERSISTENCE_HTTP_ERROR',
+                  code: 'PERSISTENCE_FORM_HTTP_ERROR',
                   status: response.status,
-                  responseBody: text
+                  responseBody: text,
+                  hubspotErrors: errPayload.errors || errPayload
                 };
-              });
-            }
-
-            return response.json().catch(function () {
-              return { ok: true };
+              }
+              try {
+                return JSON.parse(text);
+              } catch (e) {
+                return { ok: true };
+              }
             });
           })
           .then(function (data) {
             resolve({
               ok: true,
-              data: data
+              data: data,
+              via: 'form'
             });
           })
           .catch(function (err) {
-            clearTimeout(timer);
+            clearTimeout(timerForm);
             reject({
-              code: err && err.code ? err.code : 'PERSISTENCE_FETCH_ERROR',
-              message: err && err.message ? err.message : 'Error desconocido persistiendo la decisión.',
+              code: err && err.code ? err.code : 'PERSISTENCE_FORM_FETCH_ERROR',
+              message: err && err.message ? err.message : 'Error enviando oferta al formulario.',
               detail: err
             });
           });
@@ -1040,6 +1183,10 @@
         flow: STATE.flow
       });
       show(DOM.acceptFormConfigError);
+      if (DOM.acceptFormErrorDetail) {
+        DOM.acceptFormErrorDetail.textContent = 'FormId: ' + (STATE.flow.acceptFormId || '(vacío)') + '. Portal: 44539823.';
+        DOM.acceptFormErrorDetail.classList.remove('hide');
+      }
       return;
     }
 
