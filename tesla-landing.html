@@ -1,0 +1,642 @@
+<!--
+  templateType: "page"
+  isAvailableForNewContent: true
+-->
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>{{ page_meta.html_title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{ standard_header_includes }}
+  <link rel="stylesheet" href="{{ get_asset_url('/Tesla/css/tesla-modern.css') }}">
+</head>
+<body>
+
+{% set CLIENTES_OBJECT = "p44539823_clientes_tesla" %}
+{% set NEGOCIOS_OBJECT = "p44539823_negocios_tesla" %}
+
+{% set cedula_q = request.query_dict.cedula|default('')|trim %}
+{% set rn_q = request.query_dict.rn|default('')|trim %}
+
+{% set cliente = none %}
+{% set negocio = none %}
+{% set cliente_query = "" %}
+{% set negocio_query = "" %}
+{% set clientes = none %}
+{% set negocios = none %}
+
+{% if cedula_q and rn_q %}
+  {% set cliente_query = "limit=1&cedula_final_tesla=" ~ cedula_q ~ "&rn=" ~ rn_q %}
+  {% set negocio_query = "limit=1&rn_tesla=" ~ rn_q %}
+
+  {% set clientes = crm_objects(
+    CLIENTES_OBJECT,
+    cliente_query,
+    "id,applicant_name,applicant_name_tesla,nombre_bizagi_tesla,cedula_final_tesla,rn,correo_tesla,telefono_tesla,actividad_economica_tesla,ingresos_mensuales_tesla,score_tesla,nodo_tesla"
+  ) %}
+
+  {% set negocios = crm_objects(
+    NEGOCIOS_OBJECT,
+    negocio_query,
+    "id,rn_tesla,respuesta_final_tesla,caso_bizagi_tesla,codigo_sefi_tesla,nombre_sefi_tesla,actividad_detallada_bizagi_tesla,actividad_agrupada_bizagi_tesla,modelo_vehiculo_final_tesla,valor_vehiculo_final_tesla,valor_financiar_final_tesla,cuota_inicial_minima_tesla,cuota_maxima_tesla,plazo_tesla,valor_seguro_todo_riesgo_tesla,monto_max_24_meses_tesla,monto_max_36_meses_tesla,monto_max_48_meses_tesla,monto_max_60_meses_tesla,monto_max_72_meses_tesla,tasa_010_tesla,tasa_1120_tesla,tasa_2130_tesla,tasa_3140_tesla,tasa_4150_tesla,tasa_mayor_al_50_tesla"
+  ) %}
+
+  {% if clientes and clientes.total > 0 %}
+    {% set cliente = clientes.results[0] %}
+  {% endif %}
+
+  {% if negocios and negocios.total > 0 %}
+    {% set negocio = negocios.results[0] %}
+  {% endif %}
+{% endif %}
+
+{% set cliente_encontrado = cliente and cliente.id %}
+{% set negocio_encontrado = negocio and negocio.id %}
+
+{# ---------- Helpers limpieza numérica ---------- #}
+{% set valor_vehiculo = "" %}
+{% if negocio_encontrado and negocio.valor_vehiculo_final_tesla %}
+  {% set valor_vehiculo = negocio.valor_vehiculo_final_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set valor_vehiculo = valor_vehiculo|int %}
+
+{% set valor_financiar = "" %}
+{% if negocio_encontrado and negocio.valor_financiar_final_tesla %}
+  {% set valor_financiar = negocio.valor_financiar_final_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set valor_financiar = valor_financiar|int %}
+
+{% set cuota_inicial_minima = "" %}
+{% if negocio_encontrado and negocio.cuota_inicial_minima_tesla %}
+  {% set cuota_inicial_minima = negocio.cuota_inicial_minima_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set cuota_inicial_minima = cuota_inicial_minima|int %}
+
+{% set cuota_maxima = "" %}
+{% if negocio_encontrado and negocio.cuota_maxima_tesla %}
+  {% set cuota_maxima = negocio.cuota_maxima_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set cuota_maxima = cuota_maxima|int %}
+
+{% set plazo_default = "" %}
+{% if negocio_encontrado and negocio.plazo_tesla %}
+  {% set plazo_default = negocio.plazo_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set plazo_default = plazo_default|int %}
+
+{% set seguro_todo_riesgo_raw = "" %}
+{% if negocio_encontrado and negocio.valor_seguro_todo_riesgo_tesla %}
+  {% set seguro_todo_riesgo_raw = negocio.valor_seguro_todo_riesgo_tesla|string|replace("$","")|trim %}
+{% endif %}
+
+{% set monto_max_24_meses = "" %}
+{% if negocio_encontrado and negocio.monto_max_24_meses_tesla %}
+  {% set monto_max_24_meses = negocio.monto_max_24_meses_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set monto_max_24_meses = monto_max_24_meses|int %}
+
+{% set monto_max_36_meses = "" %}
+{% if negocio_encontrado and negocio.monto_max_36_meses_tesla %}
+  {% set monto_max_36_meses = negocio.monto_max_36_meses_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set monto_max_36_meses = monto_max_36_meses|int %}
+
+{% set monto_max_48_meses = "" %}
+{% if negocio_encontrado and negocio.monto_max_48_meses_tesla %}
+  {% set monto_max_48_meses = negocio.monto_max_48_meses_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set monto_max_48_meses = monto_max_48_meses|int %}
+
+{% set monto_max_60_meses = "" %}
+{% if negocio_encontrado and negocio.monto_max_60_meses_tesla %}
+  {% set monto_max_60_meses = negocio.monto_max_60_meses_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set monto_max_60_meses = monto_max_60_meses|int %}
+
+{% set monto_max_72_meses = "" %}
+{% if negocio_encontrado and negocio.monto_max_72_meses_tesla %}
+  {% set monto_max_72_meses = negocio.monto_max_72_meses_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set monto_max_72_meses = monto_max_72_meses|int %}
+
+{# ---------- Tasas RAW. Las normaliza el JS ---------- #}
+{% set tasa_0_10_raw = "" %}
+{% if negocio_encontrado and negocio.tasa_010_tesla %}
+  {% set tasa_0_10_raw = negocio.tasa_010_tesla|string|trim %}
+{% endif %}
+
+{% set tasa_11_20_raw = "" %}
+{% if negocio_encontrado and negocio.tasa_1120_tesla %}
+  {% set tasa_11_20_raw = negocio.tasa_1120_tesla|string|trim %}
+{% endif %}
+
+{% set tasa_21_30_raw = "" %}
+{% if negocio_encontrado and negocio.tasa_2130_tesla %}
+  {% set tasa_21_30_raw = negocio.tasa_2130_tesla|string|trim %}
+{% endif %}
+
+{% set tasa_31_40_raw = "" %}
+{% if negocio_encontrado and negocio.tasa_3140_tesla %}
+  {% set tasa_31_40_raw = negocio.tasa_3140_tesla|string|trim %}
+{% endif %}
+
+{% set tasa_41_50_raw = "" %}
+{% if negocio_encontrado and negocio.tasa_4150_tesla %}
+  {% set tasa_41_50_raw = negocio.tasa_4150_tesla|string|trim %}
+{% endif %}
+
+{% set tasa_mayor_50_raw = "" %}
+{% if negocio_encontrado and negocio.tasa_mayor_al_50_tesla %}
+  {% set tasa_mayor_50_raw = negocio.tasa_mayor_al_50_tesla|string|trim %}
+{% endif %}
+
+{% set respuesta_final_tesla = "" %}
+{% if negocio_encontrado and negocio.respuesta_final_tesla %}
+  {% set respuesta_final_tesla = negocio.respuesta_final_tesla|string|trim %}
+{% endif %}
+
+{# ---------- Formularios HubSpot por flujo ---------- #}
+{% set HS_FORM_ACEPTAR_APROBADO = "8a3ec946-c675-4df1-b226-bfe51c154374" %}
+{% set HS_FORM_ACEPTAR_PREAPROBADO = "11169284-eb96-4629-bc25-1d7a785ce4d0" %}
+{% set HS_FORM_REEVALUAR = "f4ff3f58-b767-4c53-bc7e-bc2c52686309" %}
+
+{# ---------- Validación estricta. Sin quemados. ---------- #}
+{% set cliente_valido = cliente_encontrado
+  and cliente.cedula_final_tesla
+  and cliente.rn
+  and cliente.nodo_tesla
+  and cliente.score_tesla
+  and cliente.actividad_economica_tesla
+%}
+
+{% set negocio_valido = negocio_encontrado
+  and respuesta_final_tesla
+  and valor_vehiculo > 0
+  and valor_financiar >= 0
+  and plazo_default > 0
+  and seguro_todo_riesgo_raw
+  and (
+    monto_max_24_meses > 0
+    or monto_max_36_meses > 0
+    or monto_max_48_meses > 0
+    or monto_max_60_meses > 0
+    or monto_max_72_meses > 0
+  )
+  and tasa_0_10_raw
+  and tasa_11_20_raw
+  and tasa_21_30_raw
+  and tasa_31_40_raw
+  and tasa_41_50_raw
+  and tasa_mayor_50_raw
+%}
+
+{% set mostrar_oferta = cliente_valido and negocio_valido %}
+{% set mostrar_error = cedula_q and rn_q and not mostrar_oferta %}
+
+{% set nombre_cliente = "" %}
+{% if cliente_encontrado %}
+  {% if cliente.applicant_name_tesla %}
+    {% set nombre_cliente = cliente.applicant_name_tesla %}
+  {% elif cliente.nombre_bizagi_tesla %}
+    {% set nombre_cliente = cliente.nombre_bizagi_tesla %}
+  {% elif cliente.applicant_name %}
+    {% set nombre_cliente = cliente.applicant_name %}
+  {% endif %}
+{% endif %}
+
+{% set modelo_vehiculo = "" %}
+{% if negocio_encontrado and negocio.modelo_vehiculo_final_tesla %}
+  {% set modelo_vehiculo = negocio.modelo_vehiculo_final_tesla %}
+{% endif %}
+
+{% set nombre_modelo = "" %}
+{% if modelo_vehiculo %}
+  {% if "model3" in (modelo_vehiculo|lower) %}
+    {% set nombre_modelo = "Tesla Model 3" %}
+  {% else %}
+    {% set nombre_modelo = "Tesla Model Y" %}
+  {% endif %}
+{% endif %}
+
+{% set img_modelo = "" %}
+{% if modelo_vehiculo %}
+  {% if "model3" in (modelo_vehiculo|lower) %}
+    {% set img_modelo = "https://experiencia.santanderconsumer.co/hubfs/model3.jfif" %}
+  {% else %}
+    {% set img_modelo = "https://experiencia.santanderconsumer.co/hubfs/modelY.jfif" %}
+  {% endif %}
+{% endif %}
+
+<header class="navbar-santander">
+  <div class="nav-container">
+    <img src="https://experiencia.santanderconsumer.co/hubfs/Consumer-02.png" alt="Santander Consumer" class="logo-header">
+  </div>
+</header>
+
+<section class="page-container">
+
+  <aside class="car-container">
+    <div class="car-header">
+      <h1 class="car-header-title">¡Bienvenidos!</h1>
+      <p>Tu crédito <strong>TESLA</strong></p>
+      {% if img_modelo %}
+        <img class="img-ref-car js-car-img" src="{{ img_modelo }}" alt="Vehículo Tesla">
+      {% endif %}
+    </div>
+
+    <div class="informationClient">
+      <div class="dataClient">
+        <div class="name">Cédula</div>
+        <div id="display-cedula" class="value">
+          {{ cliente.cedula_final_tesla if cliente_encontrado else "—" }}
+        </div>
+      </div>
+      <div class="dataClient">
+        <div class="name">RN</div>
+        <div id="display-rn" class="value">
+          {{ cliente.rn if cliente_encontrado else "—" }}
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-form-content">
+
+    <div class="stepper-container">
+      <div class="step-item {% if not mostrar_oferta %}active{% else %}completed{% endif %}" id="step-1">
+        <div class="step-circle">1</div>
+        <div class="step-label">Datos</div>
+      </div>
+      <div class="step-line {% if mostrar_oferta %}active{% endif %}" id="step-line-1"></div>
+      <div class="step-item {% if mostrar_oferta %}active{% endif %}" id="step-2">
+        <div class="step-circle">2</div>
+        <div class="step-label">Oferta</div>
+      </div>
+      <div class="step-line" id="step-line-2"></div>
+      <div class="step-item" id="step-3">
+        <div class="step-circle">3</div>
+        <div class="step-label">Cierre</div>
+      </div>
+    </div>
+
+    <section id="page-1" class="form-view {% if mostrar_oferta %}hide{% endif %}">
+      <div class="titleLogin"><h3>Valida tu solicitud</h3></div>
+
+      <form id="login-form" method="get">
+        <div class="field-group">
+          <label for="input-doc">Número de documento</label>
+          <input
+            id="input-doc"
+            name="cedula"
+            type="text"
+            maxlength="13"
+            placeholder="Ingresa tu cédula"
+            autocomplete="off"
+            value="{{ cedula_q|escape_attr }}"
+          >
+        </div>
+
+        <div class="field-group">
+          <label for="input-rn">Número RN</label>
+          <input
+            id="input-rn"
+            name="rn"
+            type="text"
+            maxlength="40"
+            placeholder="Ingresa el número de radicado"
+            autocomplete="off"
+            value="{{ rn_q|escape_attr }}"
+          >
+        </div>
+
+        <div class="contentButton" style="margin-top: 25px; flex-direction: column;">
+          <button id="btn-continue" type="submit" class="btnPrimario" style="width: 100%;">
+            CONTINUAR
+          </button>
+
+          <div id="login-error" class="{% if not mostrar_error %}hide{% endif %}" style="color: var(--rojo-santander); font-weight: bold; text-align: center; margin-top: 15px; width: 100%;">
+            Ocurrió un error al cargar la oferta. Verifica los datos o contacta soporte.
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section id="page-2" class="form-view {% if not mostrar_oferta %}hide{% endif %}">
+      <div class="step2-client-info">
+        <div class="dataClient col-span-2">
+          <div class="name">Nombre del Titular</div>
+          <div id="step2-nombre" class="value highlight-text">{{ nombre_cliente }}</div>
+        </div>
+
+        <div class="dataClient col-span-2">
+          <div class="name">Respuesta final</div>
+          <div id="step2-respuesta-final" class="value highlight-text">{{ respuesta_final_tesla if respuesta_final_tesla else "—" }}</div>
+        </div>
+
+        <div class="dataClient col-span-2">
+          <div class="name">Cuota inicial mínima requerida</div>
+          <div id="display-cuota-minima-requerida" class="value highlight-text">{{ cuota_inicial_minima }}</div>
+        </div>
+
+        <div class="dataClient top-border">
+          <div class="name">Modelo del Vehículo</div>
+          <div id="step2-modelo" class="value">{{ nombre_modelo }}</div>
+        </div>
+
+        <div class="dataClient top-border">
+          <div class="name">Valor del Vehículo</div>
+          <div id="step2-valor-carro" class="value" data-valor-vehiculo="{{ valor_vehiculo }}">
+            ${{ valor_vehiculo }}
+          </div>
+        </div>
+      </div>
+
+      <div class="titleLogin" style="margin-top: 30px;"><h3>Simulador de Cuota</h3></div>
+
+      <div class="calculator-box">
+        <div class="field-group">
+          <label>
+            Cuota Inicial:
+            <strong id="val-range-label" style="color:var(--rojo-santander); font-size: 18px;">$0</strong>
+          </label>
+          <input
+            type="range"
+            id="range-inicial"
+            min="{{ cuota_inicial_minima }}"
+            max="{{ cuota_maxima }}"
+            step="1000000"
+            value="{{ cuota_inicial_minima }}"
+          >
+          <div class="range-labels">
+            <span id="label-min">${{ cuota_inicial_minima }}</span>
+            <span id="label-max">${{ cuota_maxima }}</span>
+          </div>
+        </div>
+
+        <div class="calc-grid">
+          <div class="field-group">
+            <label>Tasa Aprobada (NMV)</label>
+            <div id="display-tasa" class="readonly-box">0.00%</div>
+          </div>
+          <div class="field-group">
+            <label for="input-plazo">Plazo (meses)</label>
+            <select id="input-plazo"></select>
+            <div id="plazo-config-warning" class="inline-warning hide">
+              El plazo disponible no está correctamente parametrizado para esta oferta.
+            </div>
+          </div>
+        </div>
+
+        <div class="options-seguros">
+          <label class="check-item">
+            <input id="check-auto" type="checkbox" checked> Seguro Auto Todo Riesgo
+          </label>
+          <label class="check-item">
+            <input id="check-desempleo" type="checkbox" checked> Seguro Desempleo
+          </label>
+        </div>
+      </div>
+
+      <div class="summary-wrapper">
+        <div class="resumen-header">
+          <span>Valor a Financiar (Capital):</span>
+          <strong id="lbl-capital">$0</strong>
+        </div>
+        <table class="summary-table">
+          <tbody>
+            <tr>
+              <td class="label">Cuota Base (Capital + Interés)</td>
+              <td class="value" id="res-base">$0</td>
+            </tr>
+            <tr>
+              <td class="label">Seguro Todo Riesgo</td>
+              <td class="value" id="res-auto">$0</td>
+            </tr>
+            <tr>
+              <td class="label">Seguro de Vida (Obligatorio)</td>
+              <td class="value" id="res-vida">$0</td>
+            </tr>
+            <tr>
+              <td class="label">Seguro Desempleo</td>
+              <td class="value" id="res-desempleo">$0</td>
+            </tr>
+            <tr class="total">
+              <td class="label">Cuota Total Mensual</td>
+              <td class="value total-val" id="res-total">$0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="general-config-error" class="page-alert page-alert--error hide" style="margin-top: 20px;">
+        No fue posible construir la oferta porque faltan datos críticos de configuración.
+      </div>
+
+      <div class="contentButton contentButton--oferta" style="margin-top: 25px;">
+        <button id="btn-firmar" type="button" class="btnPrimario">
+          ACEPTAR OFERTA
+        </button>
+        <button id="btn-desistir" type="button" class="button-secondary">
+          RE-EVALUAR CUOTA INICIAL
+        </button>
+        <button id="btn-rechazar" type="button" class="button-secondary">
+          RECHAZAR OFERTA
+        </button>
+      </div>
+    </section>
+
+    <section id="page-3" class="form-view hide">
+      <div class="titleLogin">
+        <h3 id="page-3-title">CONTINÚA CON TU SOLICITUD</h3>
+      </div>
+
+      <p id="page-3-description" class="page3-description">
+        Continúa registrando la información necesaria para obtener tu crédito de vehículo.
+      </p>
+
+      <div id="page-3-flow-badge" class="flow-badge hide"></div>
+
+      <div id="accept-form-config-error" class="page-alert page-alert--error hide">
+        El formulario para este flujo no está parametrizado. No se puede continuar hasta corregir la configuración.
+      </div>
+
+      <div id="accept-form-container" class="hide">
+        <div
+          id="accept-form-frame"
+          class="hs-form-frame"
+          data-region="na1"
+          data-form-id=""
+          data-portal-id="44539823">
+        </div>
+      </div>
+    </section>
+
+    <section id="page-4" class="form-view hide">
+      <div class="titleLogin">
+        <h3>RE-EVALUAR CUOTA INICIAL CRÉDITO</h3>
+      </div>
+
+      <p class="page3-description">
+        Completa el formulario para solicitar la re-evaluación de tu cuota inicial.
+      </p>
+
+      <div id="reevaluar-form-container" class="hide">
+        <div
+          id="reevaluar-form-frame"
+          class="hs-form-frame"
+          data-region="na1"
+          data-form-id="{{ HS_FORM_REEVALUAR }}"
+          data-portal-id="44539823">
+        </div>
+      </div>
+    </section>
+
+    <section id="page-5" class="form-view hide">
+      <div class="titleLogin">
+        <h3>Rechazo de Oferta Santander</h3>
+      </div>
+
+      <p class="page3-description" style="text-align: center; color: var(--gris-medio); line-height: 1.5;">
+        Lamentamos que no aceptes la oferta. Te esperamos para una próxima oportunidad.
+      </p>
+
+      <div class="contentButton" style="margin-top: 25px; justify-content: center;">
+        <button type="button" class="btnPrimario" onclick="window.location.href='/'">
+          VOLVER AL INICIO
+        </button>
+      </div>
+    </section>
+
+    <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
+</pre>
+
+  </main>
+</section>
+
+<div id="tesla-confirm-modal" class="modal-overlay hide" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="tesla-confirm-title">
+    <div class="modal-header">
+      <h3 id="tesla-confirm-title">Confirmar decisión</h3>
+    </div>
+
+    <div class="modal-body">
+      <p>
+        Estás a punto de aceptar la oferta con la configuración actual.
+      </p>
+
+      <div class="modal-summary">
+        <div class="modal-summary-row">
+          <span>Respuesta final</span>
+          <strong id="modal-respuesta-final">—</strong>
+        </div>
+        <div class="modal-summary-row">
+          <span>Plazo</span>
+          <strong id="modal-plazo">—</strong>
+        </div>
+        <div class="modal-summary-row">
+          <span>Cuota inicial</span>
+          <strong id="modal-cuota-inicial">—</strong>
+        </div>
+        <div class="modal-summary-row">
+          <span>Tasa</span>
+          <strong id="modal-tasa">—</strong>
+        </div>
+        <div class="modal-summary-row">
+          <span>Capital financiado</span>
+          <strong id="modal-capital">—</strong>
+        </div>
+        <div class="modal-summary-row total">
+          <span>Cuota total mensual</span>
+          <strong id="modal-cuota-total">—</strong>
+        </div>
+      </div>
+
+      <div id="modal-error-box" class="page-alert page-alert--error hide" style="margin-top: 15px;">
+        Ocurrió un error al preparar la confirmación.
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="btn-modal-cancel" type="button" class="button-back">Cancelar</button>
+      <button id="btn-modal-confirm" type="button" class="btnPrimario">Confirmar y continuar</button>
+    </div>
+  </div>
+</div>
+
+<footer class="footer-santander">
+  <div class="nav-container">
+    <p>© 2026 Banco Santander Colombia S.A. Todos los derechos reservados.<br>Vigilado Superintendencia Financiera de Colombia.</p>
+  </div>
+</footer>
+
+{{ standard_footer_includes }}
+
+<script>
+  window.TESLA_CONFIG = {
+    mostrarOferta: {{ "true" if mostrar_oferta else "false" }},
+
+    clienteId: "{{ cliente.id if cliente_encontrado else '' }}",
+    negocioId: "{{ negocio.id if negocio_encontrado else '' }}",
+    respuestaFinalTesla: "{{ respuesta_final_tesla|escapejs }}",
+
+    valorVehiculo: {{ valor_vehiculo }},
+    valorFinanciar: {{ valor_financiar }},
+    cuotaInicialMinimaPerfil: {{ cuota_inicial_minima }},
+    cuotaMaximaPerfil: {{ cuota_maxima }},
+    plazo: {{ plazo_default }},
+    valorSeguroTodoRiesgoRaw: "{{ seguro_todo_riesgo_raw|escapejs }}",
+
+    tasasRaw: {
+      tasa_0_10: "{{ tasa_0_10_raw|escapejs }}",
+      tasa_11_20: "{{ tasa_11_20_raw|escapejs }}",
+      tasa_21_30: "{{ tasa_21_30_raw|escapejs }}",
+      tasa_31_40: "{{ tasa_31_40_raw|escapejs }}",
+      tasa_41_50: "{{ tasa_41_50_raw|escapejs }}",
+      tasa_mayor_50: "{{ tasa_mayor_50_raw|escapejs }}"
+    },
+
+    montoMaximosPorPlazo: {
+      "24": {{ monto_max_24_meses }},
+      "36": {{ monto_max_36_meses }},
+      "48": {{ monto_max_48_meses }},
+      "60": {{ monto_max_60_meses }},
+      "72": {{ monto_max_72_meses }}
+    },
+
+    nodo: {{ cliente.nodo_tesla if cliente_encontrado and cliente.nodo_tesla else 0 }},
+    score: {{ cliente.score_tesla if cliente_encontrado and cliente.score_tesla else 0 }},
+    actividadEconomica: "{{ cliente.actividad_economica_tesla|escapejs if cliente_encontrado and cliente.actividad_economica_tesla else '' }}",
+
+    nombreCliente: "{{ nombre_cliente|escapejs }}",
+    cedula: "{{ cliente.cedula_final_tesla|escapejs if cliente_encontrado and cliente.cedula_final_tesla else '' }}",
+    rn: "{{ cliente.rn|escapejs if cliente_encontrado and cliente.rn else '' }}",
+    modeloVehiculo: "{{ nombre_modelo|escapejs }}",
+
+    debug: true,
+
+    forms: {
+      aceptar: {
+        aprobado: "{{ HS_FORM_ACEPTAR_APROBADO|escapejs }}",
+        preaprobado: "{{ HS_FORM_ACEPTAR_PREAPROBADO|escapejs }}"
+      },
+      reevaluar: "{{ HS_FORM_REEVALUAR|escapejs }}"
+    },
+
+    persistence: {
+      endpointUrl: "",
+      saveOfferConfigUrl: "",
+      enabled: false,
+      requireBeforeAdvance: false,
+      timeoutMs: 12000
+    }
+  };
+</script>
+
+<script src="https://js.hsforms.net/forms/embed/44539823.js" defer></script>
+<script src="{{ get_asset_url('/Tesla/js/tesla-rate-policy.js') }}"></script>
+<script src="{{ get_asset_url('/Tesla/js/tesla-pricing-engine.js') }}"></script>
+<script src="{{ get_asset_url('/Tesla/js/tesla-landing.js') }}"></script>
+
+</body>
+</html>

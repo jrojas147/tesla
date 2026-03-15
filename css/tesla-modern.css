@@ -1,0 +1,653 @@
+:root {
+    --rojo-santander: #EC0000;
+    --gris-oscuro: #222;
+    --gris-medio: #666;
+    --blanco: #fff;
+    --border: #e5e7eb;
+    --verde-ok: #28a745;
+    --fondo-alerta-error: #fff1f2;
+    --borde-alerta-error: #fecdd3;
+}
+
+/* =========================
+   BASE / LAYOUT GENERAL
+   ========================= */
+
+body {
+    margin: 0;
+    font-family: 'Santander Text', Arial, sans-serif;
+    background: #f4f4f4;
+    color: var(--gris-oscuro);
+}
+
+.navbar-santander,
+.footer-santander {
+    background: var(--blanco);
+    padding: 15px 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.footer-santander {
+    margin-top: 50px;
+    text-align: center;
+    color: var(--gris-medio);
+    font-size: 12px;
+}
+
+.nav-container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: column;
+}
+
+.logo-header {
+    height: 35px;
+}
+
+section.page-container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 40px auto;
+    display: grid;
+    gap: 30px;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+    section.page-container {
+        grid-template-columns: 350px 1fr;
+    }
+}
+
+.car-container,
+.form-view {
+    background: var(--blanco);
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    height: fit-content;
+}
+
+/* =========================
+   LADO IZQUIERDO (CAR + CLIENTE)
+   ========================= */
+
+.car-header-title {
+    color: var(--rojo-santander);
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.img-ref-car {
+    width: 100%;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.informationClient {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.dataClient {
+    background: #f9f9f9;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    flex: 1;
+}
+
+.dataClient .name {
+    font-size: 11px;
+    color: var(--gris-medio);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.dataClient .value {
+    font-size: 15px;
+    font-weight: bold;
+}
+
+/* Info cliente en paso 2 */
+
+.step2-client-info {
+    background: #fafafa;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.step2-client-info .dataClient {
+    border: none;
+    padding: 0;
+    background: transparent;
+}
+
+.step2-client-info .col-span-2 {
+    grid-column: span 2;
+}
+
+.step2-client-info .top-border {
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.highlight-text {
+    color: var(--rojo-santander);
+    font-size: 18px !important;
+}
+
+/* =========================
+   STEPPER
+   ========================= */
+
+.stepper-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: default;
+}
+
+.step-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #ccc;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.step-item.active .step-circle {
+    background: var(--rojo-santander);
+}
+
+.step-item.completed .step-circle {
+    background: var(--verde-ok);
+}
+
+.step-line {
+    flex: 0 1 50px;
+    height: 2px;
+    background: #ccc;
+    transform: translateY(-10px);
+    margin: 0 10px;
+    transition: 0.3s;
+}
+
+.step-line.active {
+    background: var(--rojo-santander);
+}
+
+.step-label {
+    font-size: 11px;
+    margin-top: 5px;
+    font-weight: bold;
+    color: var(--gris-medio);
+    transition: 0.3s;
+}
+
+.step-item.active .step-label {
+    color: var(--rojo-santander);
+}
+
+/* =========================
+   TITULOS / FORM BASICO
+   ========================= */
+
+.titleLogin {
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.titleLogin h3 {
+    margin: 0;
+    font-size: 20px;
+    text-transform: uppercase;
+}
+
+.field-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 16px;
+    outline: none;
+    background-color: #fff;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+    border-color: var(--rojo-santander);
+}
+
+/* =========================
+   CALCULADORA
+   ========================= */
+
+.calc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.calculator-box {
+    background: #fafafa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: var(--rojo-santander);
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--gris-medio);
+    margin-top: 8px;
+    font-weight: bold;
+}
+
+.options-seguros {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+    border-top: 1px solid var(--border);
+    padding-top: 15px;
+}
+
+.check-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: normal;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.readonly-box {
+    width: 100%;
+    padding: 12px;
+    background-color: #fafafa;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--gris-medio);
+    cursor: not-allowed;
+    text-align: center;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#input-plazo {
+    height: 48px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+/* =========================
+   RESUMEN DE LA OFERTA
+   ========================= */
+
+.summary-wrapper {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.resumen-header {
+    background: #fdf2f2;
+    padding: 15px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+}
+
+.resumen-header strong {
+    color: var(--rojo-santander);
+    font-size: 18px;
+    margin-left: 5px;
+}
+
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.summary-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.summary-table tr:last-child td {
+    border-bottom: none;
+}
+
+.summary-table td.value {
+    text-align: right;
+}
+
+.summary-table tr.total {
+    background: #f9f9f9;
+    font-weight: bold;
+}
+
+.summary-table td.total-val {
+    color: var(--rojo-santander);
+    font-size: 18px;
+}
+
+/* =========================
+   ALERTAS / BADGES
+   ========================= */
+
+.page-alert {
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+    border: 1px solid transparent;
+}
+
+.page-alert--error {
+    background: var(--fondo-alerta-error);
+    border-color: var(--borde-alerta-error);
+    color: #991b1b;
+}
+
+.inline-warning {
+    margin-top: 8px;
+    color: #991b1b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.flow-badge {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 20px auto;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: #fdf2f2;
+    border: 1px solid #fecaca;
+    color: var(--rojo-santander);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* =========================
+   ESTADOS / UTILIDADES
+   ========================= */
+
+.hide {
+    display: none !important;
+}
+
+.is-busy {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.is-loading {
+    position: relative;
+}
+
+.is-loading::after {
+    content: "";
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.45);
+    border-top-color: #fff;
+    display: inline-block;
+    margin-left: 8px;
+    vertical-align: middle;
+    animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* =========================
+   BOTONES
+   ========================= */
+
+.contentButton {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.contentButton--oferta {
+    justify-content: space-between;
+}
+
+.btnPrimario {
+    border-radius: 999px;
+    background: var(--rojo-santander);
+    color: #fff;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btnPrimario:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btnPrimario:hover:not(:disabled) {
+    background: #cc0000;
+}
+
+.button-secondary {
+    background-color: #ffffff;
+    color: var(--rojo-santander);
+    border: 1px solid var(--rojo-santander);
+    border-radius: 999px;
+    padding: 12px 24px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.button-secondary:hover {
+    background-color: var(--rojo-santander);
+    color: #ffffff;
+}
+
+.button-back {
+    background-color: transparent;
+    color: var(--gris-medio);
+    border: 1px solid #cccccc;
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.button-back:hover {
+    background-color: #f5f5f5;
+}
+
+/* =========================
+   PÁGINA 3 / 4 / 5
+   ========================= */
+
+.page3-description {
+    text-align: center;
+    font-size: 15px;
+    color: var(--gris-medio);
+    margin-top: 10px;
+    line-height: 1.5;
+}
+
+/* =========================
+   MODAL CONFIRMACIÓN
+   ========================= */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.modal-card {
+    width: 100%;
+    max-width: 560px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.22);
+    overflow: hidden;
+}
+
+.modal-header {
+    padding: 18px 22px 10px 22px;
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.modal-body {
+    padding: 20px 22px;
+}
+
+.modal-summary {
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.modal-summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.modal-summary-row:last-child {
+    border-bottom: none;
+}
+
+.modal-summary-row.total {
+    background: #fafafa;
+    font-weight: 700;
+}
+
+.modal-actions {
+    padding: 16px 22px 22px 22px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+@media (max-width: 600px) {
+    .contentButton--oferta {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .contentButton--oferta > button {
+        width: 100%;
+    }
+
+    .calc-grid,
+    .step2-client-info {
+        grid-template-columns: 1fr;
+    }
+
+    .step2-client-info .col-span-2 {
+        grid-column: span 1;
+    }
+
+    .modal-summary-row {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .modal-actions button {
+        width: 100%;
+    }
+}
