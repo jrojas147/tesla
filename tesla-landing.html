@@ -454,7 +454,7 @@
         Continúa registrando la información necesaria para obtener tu crédito de vehículo.
       </p>
 
-      <div id="page-3-flow-badge" class="flow-badge hide"></div>
+      <!--<div id="page-3-flow-badge" class="flow-badge hide"></div>-->
 
       <div id="accept-form-config-error" class="page-alert page-alert--error hide">
         <p>El formulario para este flujo no está parametrizado o no se pudo cargar.</p>
@@ -543,10 +543,10 @@
         <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">Volver a intentar</a>
       </div>
     </section>
-
+    <!--
     <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
-Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
-</pre>
+        Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
+    </pre>-->
   </main>
 </section>
 
@@ -655,7 +655,7 @@ Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ m
       motivoBloqueoFlujoTesla: "{{ negocio.motivo_bloqueo_flujo_tesla|escapejs if negocio_encontrado and negocio.motivo_bloqueo_flujo_tesla else '' }}"
     },
 
-    debug: true,
+    debug: false,
 
     forms: {
       aceptar: {
