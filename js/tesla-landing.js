@@ -4,10 +4,51 @@
   var DEBUG_PREFIX = '[TESLA]';
   var RAW = window.TESLA_CONFIG || {};
   var PricingEngine = window.TeslaPricingEngine;
+  var DEFAULT_PERSISTENCE_ENDPOINT = 'https://tesla-vercel-api.vercel.app/api/update-negocio-tesla';
 
   if (!PricingEngine) {
     console.error(DEBUG_PREFIX + ' Falta TeslaPricingEngine.');
     return;
+  }
+
+  function q(id) {
+    return document.getElementById(id);
+  }
+
+  function clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
+  function buildSessionId() {
+    return 'tesla_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function safeStringify(data) {
+    try {
+      return JSON.stringify(data, null, 2);
+    } catch (e) {
+      return String(data);
+    }
+  }
+
+  function fmtMoney(n) {
+    return '$' + new Intl.NumberFormat('es-CO').format(Math.round(Number(n) || 0));
+  }
+
+  function scrollTopNow() {
+    window.scrollTo(0, 0);
+  }
+
+  function normalizeRate(value) {
+    if (value === null || typeof value === 'undefined') return null;
+
+    var cleaned = String(value)
+      .replace('%', '')
+      .replace(',', '.')
+      .trim();
+
+    var parsed = Number(cleaned);
+    return isNaN(parsed) ? null : parsed / 100;
   }
 
   var CONFIG = PricingEngine.buildConfig(RAW);
@@ -281,6 +322,99 @@
 
   function setText(el, value) {
     if (el) el.textContent = value;
+  }
+
+  function captureDom() {
+    DOM.page1 = q('page-1');
+    DOM.page2 = q('page-2');
+    DOM.page3 = q('page-3');
+    DOM.page4 = q('page-4');
+    DOM.page5 = q('page-5');
+    DOM.page6 = q('page-6');
+
+    DOM.loginError = q('login-error');
+    DOM.generalConfigError = q('general-config-error');
+    DOM.acceptFormConfigError = q('accept-form-config-error');
+    DOM.reevaluarFormConfigError = q('reevaluar-form-config-error');
+
+    DOM.inputDoc = q('input-doc');
+    DOM.inputRn = q('input-rn');
+    DOM.btnContinue = q('btn-continue');
+
+    DOM.rangeInicial = q('range-inicial');
+    DOM.inputPlazo = q('input-plazo');
+    DOM.checkAuto = q('check-auto');
+    DOM.checkDesempleo = q('check-desempleo');
+
+    DOM.labelMin = q('label-min');
+    DOM.labelMax = q('label-max');
+    DOM.valRangeLabel = q('val-range-label');
+    DOM.displayCuotaMinimaRequerida = q('display-cuota-minima-requerida');
+    DOM.displayTasa = q('display-tasa');
+    DOM.lblCapital = q('lbl-capital');
+    DOM.resBase = q('res-base');
+    DOM.resVida = q('res-vida');
+    DOM.resAuto = q('res-auto');
+    DOM.resDesempleo = q('res-desempleo');
+    DOM.resTotal = q('res-total');
+    DOM.step2ValorCarro = q('step2-valor-carro');
+    DOM.step2RespuestaFinal = q('step2-respuesta-final');
+    DOM.plazoConfigWarning = q('plazo-config-warning');
+
+    DOM.btnFirmar = q('btn-firmar');
+    DOM.btnDesistir = q('btn-desistir');
+    DOM.btnRechazar = q('btn-rechazar');
+
+    DOM.page3Title = q('page-3-title');
+    DOM.page3Description = q('page-3-description');
+    DOM.page3FlowBadge = q('page-3-flow-badge');
+    DOM.acceptFormContainer = q('accept-form-container');
+    DOM.acceptFormFrame = q('accept-form-frame');
+
+    DOM.reevaluarFormContainer = q('reevaluar-form-container');
+    DOM.reevaluarFormFrame = q('reevaluar-form-frame');
+
+    DOM.blockedFlowTitle = q('blocked-flow-title');
+    DOM.blockedFlowDescription = q('blocked-flow-description');
+    DOM.blockedFlowStatus = q('blocked-flow-status');
+    DOM.blockedFlowReason = q('blocked-flow-reason');
+
+    DOM.modal = q('tesla-confirm-modal');
+    DOM.modalRespuestaFinal = q('modal-respuesta-final');
+    DOM.modalPlazo = q('modal-plazo');
+    DOM.modalCuotaInicial = q('modal-cuota-inicial');
+    DOM.modalTasa = q('modal-tasa');
+    DOM.modalCapital = q('modal-capital');
+    DOM.modalCuotaTotal = q('modal-cuota-total');
+    DOM.modalErrorBox = q('modal-error-box');
+    DOM.btnModalCancel = q('btn-modal-cancel');
+    DOM.btnModalConfirm = q('btn-modal-confirm');
+
+    DOM.step1 = q('step-1');
+    DOM.step2 = q('step-2');
+    DOM.step3 = q('step-3');
+    DOM.stepLine1 = q('step-line-1');
+    DOM.stepLine2 = q('step-line-2');
+
+    DOM.debugBox = q('tesla-debug-log');
+  }
+
+  function getSafeRecordId() {
+    var hiddenRecordId = q('tesla-negocio-id');
+    var recordId =
+      (CONFIG && CONFIG.negocioId) ||
+      (RAW && RAW.negocioId) ||
+      (hiddenRecordId && hiddenRecordId.value) ||
+      '';
+
+    Logger.technical('getSafeRecordId', {
+      configNegocioId: CONFIG && CONFIG.negocioId ? CONFIG.negocioId : '',
+      rawNegocioId: RAW && RAW.negocioId ? RAW.negocioId : '',
+      hiddenNegocioId: hiddenRecordId ? hiddenRecordId.value : '',
+      finalRecordId: recordId
+    });
+
+    return String(recordId || '').trim();
   }
 
   function mostrarPagina(pagina) {
@@ -980,14 +1114,47 @@
 
   function buildDecisionPayload(decisionType) {
     if (!STATE.simulator.calculation) {
+      Logger.calcError('No existe cálculo para construir payload', {
+        decisionType: decisionType
+      });
       return null;
     }
 
     var calc = STATE.simulator.calculation;
+    var recordId = getSafeRecordId();
 
-    return {
-      decision_cliente_tesla: decisionType,
+    if (!recordId) {
+      Logger.persistenceError('No se encontró recordId antes de persistir', {
+        decisionType: decisionType,
+        configNegocioId: CONFIG && CONFIG.negocioId ? CONFIG.negocioId : '',
+        rawNegocioId: RAW && RAW.negocioId ? RAW.negocioId : ''
+      });
+      return null;
+    }
 
+    var decisionCliente = '';
+    var decisionClienteTesla = decisionType || '';
+
+    if (decisionType === 'aceptar') {
+      decisionCliente = 'APROBADO';
+    } else if (decisionType === 'reevaluar') {
+      decisionCliente = 'REEVALUAR';
+    } else if (decisionType === 'rechazar') {
+      decisionCliente = 'RECHAZADO';
+    } else {
+      Logger.persistenceError('decisionType no reconocido en buildDecisionPayload', {
+        decisionType: decisionType
+      });
+      return null;
+    }
+
+    var payload = {
+      recordId: recordId,
+      cuota_inicial_seleccionada: String(calc.cuotaInicial),
+      tasa_selecionada: normalizeRate(calc.tasaMostrada),
+      decision_cliente: decisionCliente,
+
+      decision_cliente_tesla: decisionClienteTesla,
       plazo_seleccionado_tesla: calc.plazo,
       cuota_inicial_seleccionada_tesla: calc.cuotaInicial,
       porcentaje_cuota_inicial_tesla: calc.porcentajeCuotaInicial,
@@ -1027,156 +1194,100 @@
         user_agent: STATE.session.userAgent,
         respuesta_final_normalizada: STATE.flow.normalized
       },
-      cliente_id_tesla: CONFIG.clienteId,
-      negocio_id_tesla: CONFIG.negocioId,
-      respuesta_final_tesla: CONFIG.respuestaFinalTesla
+      cliente_id_tesla: CONFIG.clienteId || RAW.clienteId || '',
+      negocio_id_tesla: recordId,
+      respuesta_final_tesla: CONFIG.respuestaFinalTesla || RAW.respuestaFinalTesla || ''
     };
+
+    Logger.technical('buildDecisionPayload.result', payload);
+    return payload;
   }
 
   var TeslaPersistenceService = {
     persistDecision: function (payload) {
       return new Promise(function (resolve, reject) {
         var persistenceConfig = RAW.persistence || {};
-        var enabled = !!persistenceConfig.enabled;
-        var endpointUrl = (persistenceConfig.endpointUrl || '').trim();
-        var guardarOfertaFormId = (persistenceConfig.guardarOfertaFormId || '').trim();
+        var enabled =
+          typeof persistenceConfig.enabled === 'boolean'
+            ? persistenceConfig.enabled
+            : true;
+        var endpointUrl = persistenceConfig.endpointUrl || DEFAULT_PERSISTENCE_ENDPOINT;
         var timeoutMs = Number(persistenceConfig.timeoutMs) || 12000;
 
         Logger.technical('persistDecision called', {
           enabled: enabled,
-          endpointUrl: endpointUrl ? '[configured]' : '[empty]',
-          guardarOfertaFormId: guardarOfertaFormId ? '[configured]' : '[empty]',
+          endpointUrl: endpointUrl,
           timeoutMs: timeoutMs,
           payload: payload
         });
 
-        var useEndpoint = enabled && endpointUrl;
-        var useForm = !!guardarOfertaFormId;
-
-        if (!useEndpoint && !useForm) {
-          Logger.technical('Persistencia no configurada, se omite sin error', {
-            code: 'PERSISTENCE_NOT_CONFIGURED'
-          });
-          resolve({ ok: true, skipped: true, reason: 'PERSISTENCE_NOT_CONFIGURED' });
-          return;
-        }
-
-        if (useEndpoint) {
-          var controller = new AbortController();
-          var timer = setTimeout(function () {
-            controller.abort();
-          }, timeoutMs);
-
-          fetch(endpointUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload),
-            signal: controller.signal
-          })
-            .then(function (response) {
-              clearTimeout(timer);
-
-              if (!response.ok) {
-                return response.text().then(function (text) {
-                  throw {
-                    code: 'PERSISTENCE_HTTP_ERROR',
-                    status: response.status,
-                    responseBody: text
-                  };
-                });
+        if (!enabled || !endpointUrl) {
+          reject({
+            code: 'PERSISTENCE_NOT_CONFIGURED',
+            message: 'No existe endpoint de persistencia configurado.',
+            contract: {
+              method: 'POST',
+              endpoint: DEFAULT_PERSISTENCE_ENDPOINT,
+              contentType: 'application/json',
+              expectedBody: {
+                recordId: 'string',
+                cuota_inicial_seleccionada: 'string|number',
+                tasa_selecionada: 'number',
+                decision_cliente: 'string'
               }
-
-              return response.json().catch(function () {
-                return { ok: true };
-              });
-            })
-            .then(function (data) {
-              resolve({
-                ok: true,
-                data: data
-              });
-            })
-            .catch(function (err) {
-              clearTimeout(timer);
-              reject({
-                code: err && err.code ? err.code : 'PERSISTENCE_FETCH_ERROR',
-                message: err && err.message ? err.message : 'Error desconocido persistiendo la decisión.',
-                detail: err
-              });
-            });
+            }
+          });
           return;
         }
 
-        var formUrl = 'https://api.hsforms.com/submissions/v3/integration/submit/44539823/' + guardarOfertaFormId;
-        var objectTypeId = (persistenceConfig.guardarOfertaObjectTypeId || '0-1').trim();
-        var tasaVal = payload.tasa_mostrada_tesla != null ? payload.tasa_mostrada_tesla : (payload.tasa_normalizada_tesla != null ? payload.tasa_normalizada_tesla : '');
-        var formFields = [
-          { objectTypeId: objectTypeId, name: 'cuota_inicial_seleccionada', value: String(payload.cuota_inicial_seleccionada_tesla != null ? payload.cuota_inicial_seleccionada_tesla : '') },
-          { objectTypeId: objectTypeId, name: 'tasa_selecionada', value: String(tasaVal) },
-          { objectTypeId: objectTypeId, name: 'plazo_seleccionado_tesla', value: String(payload.plazo_seleccionado_tesla != null ? payload.plazo_seleccionado_tesla : '') },
-          { objectTypeId: objectTypeId, name: 'decision_cliente', value: String(payload.decision_cliente_tesla != null ? payload.decision_cliente_tesla : '') },
-          { objectTypeId: objectTypeId, name: 'negocio_id_tesla', value: String(payload.negocio_id_tesla != null ? payload.negocio_id_tesla : '') }
-        ];
-        var formBody = {
-          fields: formFields,
-          context: {
-            pageUri: window.location.href || '',
-            pageName: document.title || window.location.pathname || 'Tesla Oferta'
-          }
-        };
-
-        var controllerForm = new AbortController();
-        var timerForm = setTimeout(function () {
-          controllerForm.abort();
+        var controller = new AbortController();
+        var timer = setTimeout(function () {
+          controller.abort();
         }, timeoutMs);
 
-        fetch(formUrl, {
+        Logger.technical('persistDecision.payload.final', payload);
+
+        fetch(endpointUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(formBody),
-          signal: controllerForm.signal
+          body: JSON.stringify(payload),
+          signal: controller.signal
         })
           .then(function (response) {
-            clearTimeout(timerForm);
+            clearTimeout(timer);
 
             return response.text().then(function (text) {
+              var parsed;
+              try {
+                parsed = text ? JSON.parse(text) : { ok: true };
+              } catch (e) {
+                parsed = { raw: text };
+              }
+
               if (!response.ok) {
-                var errPayload;
-                try {
-                  errPayload = JSON.parse(text);
-                } catch (e) {
-                  errPayload = { message: text, errors: [] };
-                }
                 throw {
-                  code: 'PERSISTENCE_FORM_HTTP_ERROR',
+                  code: 'PERSISTENCE_HTTP_ERROR',
                   status: response.status,
-                  responseBody: text,
-                  hubspotErrors: errPayload.errors || errPayload
+                  responseBody: parsed
                 };
               }
-              try {
-                return JSON.parse(text);
-              } catch (e) {
-                return { ok: true };
-              }
+
+              return parsed;
             });
           })
           .then(function (data) {
             resolve({
               ok: true,
-              data: data,
-              via: 'form'
+              data: data
             });
           })
           .catch(function (err) {
-            clearTimeout(timerForm);
+            clearTimeout(timer);
             reject({
-              code: err && err.code ? err.code : 'PERSISTENCE_FORM_FETCH_ERROR',
-              message: err && err.message ? err.message : 'Error enviando oferta al formulario.',
+              code: err && err.code ? err.code : 'PERSISTENCE_FETCH_ERROR',
+              message: err && err.message ? err.message : 'Error desconocido persistiendo la decisión.',
               detail: err
             });
           });
@@ -1201,7 +1312,11 @@
 
         Logger.persistenceError('Falló persistencia de decisión', err);
 
-        var requireBeforeAdvance = !!(RAW.persistence && RAW.persistence.requireBeforeAdvance);
+        var requireBeforeAdvance =
+          RAW.persistence && typeof RAW.persistence.requireBeforeAdvance === 'boolean'
+            ? !!RAW.persistence.requireBeforeAdvance
+            : true;
+
         if (requireBeforeAdvance) {
           throw err;
         }
@@ -1350,6 +1465,9 @@
         mostrarPagina(5);
         scrollTopNow();
       })
+      .catch(function (err) {
+        Logger.persistenceError('Error en flujo de rechazo', err);
+      })
       .finally(function () {
         STATE.ui.rejectBusy = false;
         setBusy(DOM.btnRechazar, false);
@@ -1456,8 +1574,8 @@
       Logger.technical('REFERIDO detectado al inicio', flowResult);
     } else {
       flowResult = resolverFlujoPorRespuestaFinal();
-      Logger.technical('resolverFlujoPorRespuestaFinal', flowResult);
-      if (flowResult.normalized === 'desconocido') {
+    Logger.technical('resolverFlujoPorRespuestaFinal', flowResult);
+    if (flowResult.normalized === 'desconocido') {
         var rawDesconocido = String(flowResult.raw || respuestaRaw || '').trim();
         var esReferidoDesconocido = rawDesconocido.toUpperCase().indexOf('REFERIDO') !== -1;
         flowResult = {
@@ -1531,7 +1649,7 @@
         mostrarPagina(7);
         if (DOM.mainFormContent) DOM.mainFormContent.classList.add('showing-page-7');
       } else {
-        mostrarPagina(1);
+      mostrarPagina(1);
       }
       return;
     }
@@ -1549,11 +1667,11 @@
   }
 
   function runInitWhenReady() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
       setTimeout(init, 0);
-    }
+  }
   }
   runInitWhenReady();
 
