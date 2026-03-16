@@ -1153,7 +1153,8 @@
       cuota_inicial_seleccionada: String(calc.cuotaInicial),
       tasa_selecionada: normalizeRate(calc.tasaMostrada),
       decision_cliente: decisionCliente,
-
+      acepta_seguro_todo_riesgo: !!calc.seguros.autoSeleccionado,
+      acepta_seguro_desempleo: !!calc.seguros.desempleoSeleccionado,
       decision_cliente_tesla: decisionClienteTesla,
       plazo_seleccionado_tesla: calc.plazo,
       cuota_inicial_seleccionada_tesla: calc.cuotaInicial,
@@ -1233,7 +1234,15 @@
                 recordId: 'string',
                 cuota_inicial_seleccionada: 'string|number',
                 tasa_selecionada: 'number',
-                decision_cliente: 'string'
+                decision_cliente: 'string',
+                acepta_seguro_todo_riesgo: 'boolean',
+                acepta_seguro_desempleo: 'boolean',
+                plazo_seleccionado_tesla: 'number',
+                cuota_inicial_seleccionada_tesla: 'number',
+                porcentaje_cuota_inicial_tesla: 'number',
+                capital_financiado_tesla: 'number',
+                cuota_base_tesla: 'number',
+                cuota_total_tesla: 'number'
               }
             }
           });
