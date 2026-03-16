@@ -275,7 +275,7 @@
       </div>
     </div>
 
-    <section id="page-1" class="form-view {% if mostrar_oferta %}hide{% endif %}">
+    <section id="page-1" class="form-view {% if mostrar_oferta or mostrar_error %}hide{% endif %}">
       <div class="titleLogin"><h3>Valida tu solicitud</h3></div>
 
       <form id="login-form" method="get">
@@ -309,10 +309,6 @@
           <button id="btn-continue" type="submit" class="btnPrimario" style="width: 100%;">
             CONTINUAR
           </button>
-
-          <div id="login-error" class="{% if not mostrar_error %}hide{% endif %}" style="color: var(--rojo-santander); font-weight: bold; text-align: center; margin-top: 15px; width: 100%;">
-            Ocurrió un error al cargar la oferta. Verifica los datos o contacta soporte.
-          </div>
         </div>
       </form>
     </section>
@@ -530,6 +526,13 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </section>
+    <section id="page-7" class="form-view {% if not mostrar_error %}hide{% endif %}">
+      <div class="titleLogin"><h3>Ha ocurrido un error</h3></div>
+      <p class="page3-description">No pudimos cargar la información solicitada. Por favor intenta de nuevo o contacta a soporte si el problema continúa.</p>
+      <div class="contentButton" style="margin-top: 25px;">
+        <a href="{{ request.path }}" class="btnPrimario" style="display: inline-block; text-decoration: none;">Volver a intentar</a>
       </div>
     </section>
 

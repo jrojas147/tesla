@@ -115,6 +115,7 @@
     DOM.page4 = q('page-4');
     DOM.page5 = q('page-5');
     DOM.page6 = q('page-6');
+    DOM.page7 = q('page-7');
 
     DOM.loginError = q('login-error');
     DOM.generalConfigError = q('general-config-error');
@@ -281,7 +282,7 @@
   }
 
   function mostrarPagina(pagina) {
-    var pages = [DOM.page1, DOM.page2, DOM.page3, DOM.page4, DOM.page5, DOM.page6];
+    var pages = [DOM.page1, DOM.page2, DOM.page3, DOM.page4, DOM.page5, DOM.page6, DOM.page7];
 
     for (var i = 0; i < pages.length; i++) {
       hide(pages[i]);
@@ -293,6 +294,7 @@
     if (pagina === 4) show(DOM.page4);
     if (pagina === 5) show(DOM.page5);
     if (pagina === 6) show(DOM.page6);
+    if (pagina === 7) show(DOM.page7);
 
     STATE.ui.currentPage = pagina;
     actualizarStepper(pagina);
@@ -314,6 +316,7 @@
 
   function actualizarStepper(pagina) {
     resetStepper();
+    if (pagina === 7) return;
 
     if (pagina === 1) {
       DOM.step1 && DOM.step1.classList.add('active');
@@ -343,14 +346,7 @@
       return;
     }
 
-    show(DOM.generalConfigError);
-    if (message) {
-      DOM.generalConfigError.textContent = message;
-    }
-    if (DOM.page2) hide(DOM.page2);
-    if (DOM.page1) show(DOM.page1);
-    if (DOM.loginError) show(DOM.loginError);
-
+    mostrarPagina(7);
     Logger.configError('mostrarErrorGeneral', {
       message: message,
       details: details || null
