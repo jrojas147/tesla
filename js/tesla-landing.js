@@ -640,7 +640,7 @@
       var script = document.createElement('script');
       script.charset = 'utf-8';
       script.type = 'text/javascript';
-      script.src = 'https://js.hsforms.net/forms/embed/44539823.js';
+      script.src = 'https://js.hsforms.net/forms/v2.js';
       script.onload = function () {
         var attempts = 0;
         var t = setInterval(function () {
