@@ -531,8 +531,8 @@
     <section id="page-7" class="form-view {% if not mostrar_error %}hide{% endif %}">
       <div class="titleLogin"><h3>Ha ocurrido un error</h3></div>
       <p class="page3-description">No pudimos cargar la información solicitada. Por favor intenta de nuevo o contacta a soporte si el problema continúa.</p>
-      <div class="contentButton" style="margin-top: 25px;">
-        <a href="{{ request.path }}" class="btnPrimario" style="display: inline-block; text-decoration: none;">Volver a intentar</a>
+      <div class="contentButton" style="margin-top: 25px; flex-direction: column;">
+        <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">Volver a intentar</a>
       </div>
     </section>
 
