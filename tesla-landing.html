@@ -313,6 +313,10 @@
           <button id="btn-continue" type="submit" class="btnPrimario" style="width: 100%;">
             CONTINUAR
           </button>
+
+          <div id="login-error" class="{% if not mostrar_error %}hide{% endif %}" style="color: var(--rojo-santander); font-weight: bold; text-align: center; margin-top: 15px; width: 100%;">
+            Ocurrió un error al cargar la oferta. Verifica los datos o contacta soporte.
+          </div>
         </div>
       </form>
     </section>
@@ -666,12 +670,10 @@ Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ m
     // el registro de Negocios TESLA (buscar por negocio_id_tesla) con los campos
     // cuota_inicial_seleccionada, tasa_selecionada, plazo_seleccionado_tesla, decision_cliente.
     persistence: {
-      endpointUrl: "",
-      enabled: false,
-      requireBeforeAdvance: false,
-      timeoutMs: 12000,
-      guardarOfertaFormId: "2-59067506",
-      guardarOfertaObjectTypeId: "0-1"
+      endpointUrl: "https://tesla-vercel-api.vercel.app/api/update-negocio-tesla",
+      enabled: true,
+      requireBeforeAdvance: true,
+      timeoutMs: 12000
     }
   };
 
