@@ -502,7 +502,7 @@
       </p>
 
       <div class="contentButton" style="margin-top: 25px; justify-content: center;">
-        <button type="button" class="btnPrimario" onclick="window.location.href='/'">
+        <button type="button" id="btn-volver-inicio" class="btnPrimario" onclick="if(window.TeslaIrASeccion1) window.TeslaIrASeccion1();">
           VOLVER AL INICIO
         </button>
       </div>
@@ -673,6 +673,31 @@ Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ m
       guardarOfertaFormId: "2-59067506",
       guardarOfertaObjectTypeId: "0-1"
     }
+  };
+
+  window.TeslaIrASeccion1 = function () {
+    var main = document.getElementById('main-form-content');
+    if (!main) return;
+    var ids = ['page-1', 'page-2', 'page-3', 'page-4', 'page-5', 'page-6', 'page-7'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) {
+        el.classList.add('hide');
+        el.style.removeProperty('display');
+      }
+    }
+    var page1 = document.getElementById('page-1');
+    if (page1) {
+      page1.classList.remove('hide');
+      page1.style.removeProperty('display');
+    }
+    main.classList.remove('showing-page-7');
+    var stepper = main.querySelector('.stepper-container');
+    if (stepper) {
+      stepper.classList.remove('hide');
+      stepper.style.removeProperty('display');
+    }
+    window.scrollTo(0, 0);
   };
 </script>
 

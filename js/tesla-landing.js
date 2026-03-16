@@ -150,6 +150,7 @@
     DOM.btnFirmar = q('btn-firmar');
     DOM.btnDesistir = q('btn-desistir');
     DOM.btnRechazar = q('btn-rechazar');
+    DOM.btnVolverInicio = q('btn-volver-inicio');
 
     DOM.page3Title = q('page-3-title');
     DOM.page3Description = q('page-3-description');
@@ -1053,23 +1054,10 @@
         var useForm = !!guardarOfertaFormId;
 
         if (!useEndpoint && !useForm) {
-          reject({
-            code: 'PERSISTENCE_NOT_CONFIGURED',
-            message: 'No existe endpoint de persistencia ni formulario guardar oferta configurado.',
-            contract: {
-              method: 'POST',
-              endpoint: 'RAW.persistence.endpointUrl',
-              guardarOfertaFormId: 'RAW.persistence.guardarOfertaFormId',
-              contentType: 'application/json',
-              expectedBody: {
-                cliente_id_tesla: 'string',
-                negocio_id_tesla: 'string',
-                decision_cliente_tesla: 'string',
-                snapshot_oferta_tesla: 'object',
-                metadata_sesion_tesla: 'object'
-              }
-            }
+          Logger.technical('Persistencia no configurada, se omite sin error', {
+            code: 'PERSISTENCE_NOT_CONFIGURED'
           });
+          resolve({ ok: true, skipped: true, reason: 'PERSISTENCE_NOT_CONFIGURED' });
           return;
         }
 
@@ -1413,6 +1401,11 @@
     if (DOM.btnRechazar) {
       DOM.btnRechazar.addEventListener('click', handleRechazarClick);
     }
+    if (DOM.btnVolverInicio) {
+      DOM.btnVolverInicio.addEventListener('click', function () {
+        mostrarPagina(1);
+      });
+    }
 
     if (DOM.btnModalCancel) {
       DOM.btnModalCancel.addEventListener('click', closeConfirmModal);
@@ -1563,4 +1556,8 @@
     }
   }
   runInitWhenReady();
+
+  window.TeslaVolverInicio = function () {
+    mostrarPagina(1);
+  };
 })();
