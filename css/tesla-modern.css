@@ -439,6 +439,15 @@ input[type="range"] {
     display: none !important;
 }
 
+/* Con pantalla de error (page-7) activa: ocultar page-1 y poner page-7 encima */
+#main-form-content.showing-page-7 #page-1 {
+    display: none !important;
+}
+#main-form-content.showing-page-7 #page-7 {
+    position: relative;
+    z-index: 2;
+}
+
 .is-busy {
     opacity: 0.6;
     pointer-events: none;

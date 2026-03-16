@@ -176,6 +176,7 @@
     DOM.btnModalCancel = q('btn-modal-cancel');
     DOM.btnModalConfirm = q('btn-modal-confirm');
 
+    DOM.mainFormContent = q('main-form-content');
     DOM.step1 = q('step-1');
     DOM.step2 = q('step-2');
     DOM.step3 = q('step-3');
@@ -294,7 +295,13 @@
     if (pagina === 4) show(DOM.page4);
     if (pagina === 5) show(DOM.page5);
     if (pagina === 6) show(DOM.page6);
-    if (pagina === 7) show(DOM.page7);
+    if (pagina === 7) {
+      show(DOM.page7);
+      if (DOM.page1) hide(DOM.page1);
+      if (DOM.mainFormContent) DOM.mainFormContent.classList.add('showing-page-7');
+    } else {
+      if (DOM.mainFormContent) DOM.mainFormContent.classList.remove('showing-page-7');
+    }
 
     STATE.ui.currentPage = pagina;
     actualizarStepper(pagina);
@@ -1510,18 +1517,29 @@
     captureDom();
     clearDebugBox();
 
-    Logger.technical('INIT RAW', RAW);
+    var config = window.TESLA_CONFIG || {};
+    Logger.technical('INIT RAW', config);
 
-    if (RAW.mostrarOferta && DOM.loginError) {
+    if (config.mostrarError === true) {
+      mostrarPagina(7);
+      if (DOM.mainFormContent) DOM.mainFormContent.classList.add('showing-page-7');
+    }
+
+    if (config.mostrarOferta && DOM.loginError) {
       hide(DOM.loginError);
     }
 
     initLoginButton();
     bindBotones();
 
-    if (!RAW.mostrarOferta) {
+    if (!config.mostrarOferta) {
       Logger.warn('mostrarOferta=false, no se inicializa la calculadora', null);
-      mostrarPagina(1);
+      if (config.mostrarError === true) {
+        mostrarPagina(7);
+        if (DOM.mainFormContent) DOM.mainFormContent.classList.add('showing-page-7');
+      } else {
+        mostrarPagina(1);
+      }
       return;
     }
 

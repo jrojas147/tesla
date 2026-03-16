@@ -225,6 +225,10 @@
   {% endif %}
 {% endif %}
 
+{% if mostrar_error %}
+<style id="tesla-error-styles">#main-form-content #page-1,#main-form-content .stepper-container{display:none!important}#main-form-content #page-7{display:block!important;visibility:visible!important}</style>
+{% endif %}
+
 <header class="navbar-santander">
   <div class="nav-container">
     <img src="https://experiencia.santanderconsumer.co/hubfs/Consumer-02.png" alt="Santander Consumer" class="logo-header">
@@ -257,8 +261,8 @@
     </div>
   </aside>
 
-  <main class="main-form-content">
-    <div class="stepper-container">
+  <main id="main-form-content" class="main-form-content{% if mostrar_error %} showing-page-7{% endif %}">
+    <div class="stepper-container" {% if mostrar_error %}style="display: none !important;"{% endif %}>
       <div class="step-item {% if not mostrar_oferta %}active{% else %}completed{% endif %}" id="step-1">
         <div class="step-circle">1</div>
         <div class="step-label">Datos</div>
@@ -275,8 +279,8 @@
       </div>
     </div>
 
-    <section id="page-1" class="form-view {% if mostrar_oferta or mostrar_error %}hide{% endif %}">
-      <div class="titleLogin"><h3>Valida tu solicitud</h3></div>
+    <section id="page-1" class="form-view {% if mostrar_oferta or mostrar_error %}hide{% endif %}" {% if mostrar_error %}style="display: none !important;"{% endif %}>
+      <div class="titleLogin"><h3>Valida tu solicitudD</h3></div>
 
       <form id="login-form" method="get">
         <div class="field-group">
@@ -528,7 +532,7 @@
         </table>
       </div>
     </section>
-    <section id="page-7" class="form-view {% if not mostrar_error %}hide{% endif %}">
+    <section id="page-7" class="form-view {% if not mostrar_error %}hide{% endif %}" {% if mostrar_error %}style="display: block !important;"{% endif %}>
       <div class="titleLogin"><h3>Ha ocurrido un error</h3></div>
       <p class="page3-description">No pudimos cargar la información solicitada. Por favor intenta de nuevo o contacta a soporte si el problema continúa.</p>
       <div class="contentButton" style="margin-top: 25px; flex-direction: column;">
@@ -537,6 +541,7 @@
     </section>
 
     <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
+Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
 </pre>
   </main>
 </section>
@@ -600,6 +605,7 @@
 <script>
   window.TESLA_CONFIG = {
     mostrarOferta: {{ "true" if mostrar_oferta else "false" }},
+    mostrarError: {{ "true" if mostrar_error else "false" }},
     esReferido: {{ "true" if respuesta_final_tesla and 'REFERIDO' in (respuesta_final_tesla|upper|string) else "false" }},
 
     clienteId: "{{ cliente.id if cliente_encontrado else '' }}",
