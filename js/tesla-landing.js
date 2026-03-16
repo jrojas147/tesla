@@ -716,6 +716,25 @@
     STATE.flow.acceptFormId = flowResult.acceptFormId || null;
     STATE.flow.acceptFormReady = !!flowResult.canAccept;
 
+    // Ajuste mínimo: si el flujo viene como REFERIDO pero no tiene formulario propio configurado,
+    // reusar el formulario de PREAPROBADO únicamente para poder mostrar el formulario,
+    // sin alterar la resolución general del flujo ni otros casos.
+    if (
+      STATE.flow.normalized === 'referido' &&
+      !STATE.flow.acceptFormId &&
+      window.TESLA_CONFIG &&
+      window.TESLA_CONFIG.forms &&
+      window.TESLA_CONFIG.forms.aceptar &&
+      window.TESLA_CONFIG.forms.aceptar.preaprobado
+    ) {
+      STATE.flow.acceptFormId = window.TESLA_CONFIG.forms.aceptar.preaprobado;
+      STATE.flow.acceptFormReady = true;
+      Logger.warn('FORM_REFERIDO_SIN_ID, usando formulario de PREAPROBADO como fallback solo en front', {
+        fallbackFormId: STATE.flow.acceptFormId,
+        normalized: STATE.flow.normalized
+      });
+    }
+
     setText(DOM.page3Title, flowResult.acceptTitle || 'CONTINÚA CON TU SOLICITUD');
     setText(DOM.page3Description, flowResult.acceptDescription || '');
 
