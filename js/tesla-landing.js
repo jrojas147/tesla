@@ -199,6 +199,10 @@
     DOM.acceptFormContainer = q('accept-form-container');
     DOM.acceptFormFrame = q('accept-form-frame');
 
+    DOM.desistirFormConfigError = q('desistir-form-config-error');
+    DOM.desistirFormContainer = q('desistir-form-container');
+    DOM.desistirFormFrame = q('desistir-form-frame');
+    
     DOM.reevaluarFormContainer = q('reevaluar-form-container');
     DOM.reevaluarFormFrame = q('reevaluar-form-frame');
 
@@ -1492,6 +1496,8 @@
         STATE.decision.submittedAt = new Date().toISOString();
         mostrarPagina(5);
         scrollTopNow();
+        return ensureDesistirFormRendered();
+
       })
       .catch(function (err) {
         Logger.persistenceError('Error en flujo de rechazo', err);
@@ -1700,6 +1706,46 @@
   } else {
       setTimeout(init, 0);
   }
+  }
+
+  function ensureDesistirFormRendered() {
+    var desistirFormId = RAW.forms && RAW.forms.desistir ? RAW.forms.desistir : '';
+
+    if (!desistirFormId) {
+      if (DOM.desistirFormConfigError) show(DOM.desistirFormConfigError);
+      if (DOM.desistirFormContainer) hide(DOM.desistirFormContainer);
+      Logger.configError('No existe formulario de desistimiento configurado', null);
+      return Promise.reject(new Error('Formulario de desistimiento no configurado.'));
+    }
+
+    if (!DOM.desistirFormFrame) {
+      Logger.configError('No existe contenedor para formulario de desistimiento', null);
+      return Promise.reject(new Error('Contenedor de desistimiento no disponible.'));
+    }
+
+    if (DOM.desistirFormContainer) show(DOM.desistirFormContainer);
+    if (DOM.desistirFormConfigError) hide(DOM.desistirFormConfigError);
+
+    DOM.desistirFormFrame.setAttribute('data-form-id', desistirFormId);
+    DOM.desistirFormFrame.setAttribute('data-region', 'na1');
+    DOM.desistirFormFrame.setAttribute('data-portal-id', '44539823');
+
+    return renderHubspotForm(DOM.desistirFormFrame, desistirFormId)
+      .then(function () {
+        Logger.functional('Formulario de desistimiento renderizado', {
+          formId: desistirFormId
+        });
+      })
+      .catch(function (err) {
+        if (DOM.desistirFormContainer) hide(DOM.desistirFormContainer);
+        if (DOM.desistirFormConfigError) show(DOM.desistirFormConfigError);
+
+        Logger.configError('Error renderizando formulario de desistimiento', {
+          formId: desistirFormId,
+          error: err && err.message ? err.message : String(err)
+        });
+        throw err;
+      });
   }
   runInitWhenReady();
 

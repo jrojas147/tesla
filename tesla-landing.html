@@ -157,6 +157,7 @@
 {% set HS_FORM_ACEPTAR_APROBADO = "8a3ec946-c675-4df1-b226-bfe51c154374" %}
 {% set HS_FORM_ACEPTAR_PREAPROBADO = "11169284-eb96-4629-bc25-1d7a785ce4d0" %}
 {% set HS_FORM_REEVALUAR = "f4ff3f58-b767-4c53-bc7e-bc2c52686309" %}
+{% set HS_FORM_DESISTIR = "e827eacc-a129-4a3a-b96a-4cdbff1fcb2b" %}
 
 {% set cliente_valido = cliente_encontrado
   and cliente.cedula_final_tesla
@@ -504,7 +505,18 @@
       <p class="page3-description" style="text-align: center; color: var(--gris-medio); line-height: 1.5;">
         Lamentamos que no aceptes la oferta. Te esperamos para una próxima oportunidad.
       </p>
-
+      <div id="desistir-form-config-error" class="page-alert page-alert--error hide">
+        El formulario de desistimiento no se pudo cargar.
+      </div>
+      <div id="desistir-form-container" class="hide">
+        <div
+          id="desistir-form-frame"
+          class="hs-form-frame"
+          data-region="na1"
+          data-form-id="{{ HS_FORM_DESISTIR }}"
+          data-portal-id="44539823">
+        </div>
+       </div>
       <div class="contentButton" style="margin-top: 25px; justify-content: center;">
         <button type="button" id="btn-volver-inicio" class="btnPrimario" onclick="if(window.TeslaIrASeccion1) window.TeslaIrASeccion1();">
           VOLVER AL INICIO
@@ -662,7 +674,8 @@
         aprobado: "{{ HS_FORM_ACEPTAR_APROBADO|escapejs }}",
         preaprobado: "{{ HS_FORM_ACEPTAR_PREAPROBADO|escapejs }}"
       },
-      reevaluar: "{{ HS_FORM_REEVALUAR|escapejs }}"
+      reevaluar: "{{ HS_FORM_REEVALUAR|escapejs }}",
+      desistir: "{{ HS_FORM_DESISTIR|escapejs }}"
     },
 
     // Para que los datos lleguen al objeto Negocios TESLA: crear workflow en HubSpot
