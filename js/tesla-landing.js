@@ -1569,6 +1569,16 @@
       console.log(DEBUG_PREFIX + ' decision_cliente (Negocios Tesla):', config.decisionCliente || '');
     } catch (e) {}
 
+    try {
+      var rawDecisionCliente = config.decisionCliente;
+      console.log(rawDecisionCliente);
+      if(rawDecisionCliente === 'APROBADO' || rawDecisionCliente === 'REFERIDO' || rawDecisionCliente === 'PREAPROBADO'  || rawDecisionCliente === 'RECHAZADO'){
+        alert("es diligenciado");
+      }
+    } catch (e) {
+      Logger.warn('No se pudo evaluar decisionCliente en init', { error: String(e && e.message ? e.message : e) });
+    }
+
     if (config.mostrarError === true) {
       mostrarPagina(7);
       if (DOM.mainFormContent) DOM.mainFormContent.classList.add('showing-page-7');
