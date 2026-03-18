@@ -1555,6 +1555,7 @@
   var initAlreadyRun = false;
 
   function init() {
+    console.log(window.TESLA_DECISION_CLIENTE);
     if (initAlreadyRun) {
       Logger.warn('init ya ejecutado, se omite segunda llamada', null);
       return;
