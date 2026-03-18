@@ -227,7 +227,21 @@
 {% endif %}
 
 {% if mostrar_error %}
-<style id="tesla-error-styles">#main-form-content #page-1,#main-form-content .stepper-container{display:none!important}#main-form-content #page-7{display:block!important;visibility:visible!important}</style>
+<style id="tesla-error-styles">
+  #main-form-content #page-1,
+  #main-form-content .stepper-container {
+    display: none !important;
+  }
+  #main-form-content #page-7 {
+    display: block !important;
+    visibility: visible !important;
+  }
+  .logo-vigilado {
+    height: 30px;
+    vertical-align: middle;
+    margin-top: 5px;
+  }
+</style>
 {% endif %}
 
 <header class="navbar-santander">
@@ -239,8 +253,8 @@
 <section class="page-container">
   <aside class="car-container">
     <div class="car-header">
-      <h1 class="car-header-title">¡Bienvenidos!</h1>
-      <p>Tu crédito <strong>TESLA</strong></p>
+      <h1 class="car-header-title">¡Bienvenido!</h1>
+      <p>Conoce tu oferta de crédito <strong>TESLA</strong></p>
       {% if img_modelo %}
         <img class="img-ref-car js-car-img" src="{{ img_modelo }}" alt="Vehículo Tesla">
       {% endif %}
@@ -298,7 +312,16 @@
         </div>
 
         <div class="field-group">
-          <label for="input-rn">Número RN</label>
+          <label for="input-rn" class="label-with-help">
+            <span>Número RN</span>
+
+            <span class="tooltip-wrapper" tabindex="0" aria-label="Información sobre el número RN">
+              <span class="tooltip-trigger" aria-hidden="true">i</span>
+              <span class="tooltip-content" role="tooltip">
+                Es el número de radicado de tu solicitud. Lo encuentras fácilmente ingresando a tu aplicación de Tesla.
+              </span>
+            </span>
+          </label>
           <input
             id="input-rn"
             name="rn"
@@ -316,7 +339,7 @@
           </button>
 
           <div id="login-error" class="{% if not mostrar_error %}hide{% endif %}" style="color: var(--rojo-santander); font-weight: bold; text-align: center; margin-top: 15px; width: 100%;">
-            Ocurrió un error al cargar la oferta. Verifica los datos o contacta soporte.
+            No pudimos cargar tu oferta. Por favor, revisa que tus datos sean correctos o contacta a soporte.
           </div>
         </div>
       </form>
@@ -325,12 +348,12 @@
     <section id="page-2" class="form-view {% if not mostrar_oferta %}hide{% endif %}">
       <div class="step2-client-info">
         <div class="dataClient col-span-2">
-          <div class="name">Nombre del Titular</div>
+          <div class="name">Nombre del titular</div>
           <div id="step2-nombre" class="value highlight-text">{{ nombre_cliente }}</div>
         </div>
 
         <div class="dataClient col-span-2">
-          <div class="name">Respuesta final</div>
+          <div class="name">Estado de la solicitud</div>
           <div id="step2-respuesta-final" class="value highlight-text">{{ respuesta_final_tesla if respuesta_final_tesla else "—" }}</div>
         </div>
 
@@ -340,12 +363,12 @@
         </div>
 
         <div class="dataClient top-border">
-          <div class="name">Modelo del Vehículo</div>
+          <div class="name">Modelo del vehículo</div>
           <div id="step2-modelo" class="value">{{ nombre_modelo }}</div>
         </div>
 
         <div class="dataClient top-border">
-          <div class="name">Valor del Vehículo</div>
+          <div class="name">Valor del vehículo</div>
           <div id="step2-valor-carro" class="value" data-valor-vehiculo="{{ valor_vehiculo }}">
             ${{ valor_vehiculo }}
           </div>
@@ -357,7 +380,7 @@
       <div class="calculator-box">
         <div class="field-group">
           <label>
-            Cuota Inicial:
+            Cuota inicial:
             <strong id="val-range-label" style="color:var(--rojo-santander); font-size: 18px;">$0</strong>
           </label>
           <input
@@ -376,7 +399,7 @@
 
         <div class="calc-grid">
           <div class="field-group">
-            <label>Tasa Aprobada (NMV)</label>
+            <label>Tasa aprobada (NMV)</label>
             <div id="display-tasa" class="readonly-box">0.00%</div>
           </div>
           <div class="field-group">
@@ -400,29 +423,29 @@
 
       <div class="summary-wrapper">
         <div class="resumen-header">
-          <span>Valor a Financiar (Capital):</span>
+          <span>Valor a financiar (capital):</span>
           <strong id="lbl-capital">$0</strong>
         </div>
         <table class="summary-table">
           <tbody>
             <tr>
-              <td class="label">Cuota Base (Capital + Interés)</td>
+              <td class="label">Cuota base (capital + interés)</td>
               <td class="value" id="res-base">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro Auto Todo Riesgo</td>
+              <td class="label">Seguro auto todo riesgo</td>
               <td class="value" id="res-auto">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro de Vida (Incluido)</td>
+              <td class="label">Seguro de vida (incluido)</td>
               <td class="value" id="res-vida">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro Desempleo</td>
+              <td class="label">Seguro desempleo</td>
               <td class="value" id="res-desempleo">$0</td>
             </tr>
             <tr class="total">
-              <td class="label">Cuota Total Mensual</td>
+              <td class="label">Cuota total mensual estimada</td>
               <td class="value total-val" id="res-total">$0</td>
             </tr>
           </tbody>
