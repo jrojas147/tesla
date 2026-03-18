@@ -1562,6 +1562,12 @@
 
     var config = window.TESLA_CONFIG || {};
     Logger.technical('INIT RAW', config);
+    Logger.technical('Negocio decision_cliente (desde objeto Negocios Tesla)', {
+      decision_cliente: config.decisionCliente || ''
+    });
+    try {
+      console.log(DEBUG_PREFIX + ' decision_cliente (Negocios Tesla):', config.decisionCliente || '');
+    } catch (e) {}
 
     if (config.mostrarError === true) {
       mostrarPagina(7);

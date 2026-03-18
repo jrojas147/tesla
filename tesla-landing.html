@@ -39,7 +39,7 @@
   {% set negocios = crm_objects(
     NEGOCIOS_OBJECT,
     negocio_query,
-    "id,rn_tesla,respuesta_final_tesla,caso_bizagi_tesla,codigo_sefi_tesla,nombre_sefi_tesla,actividad_detallada_bizagi_tesla,actividad_agrupada_bizagi_tesla,modelo_vehiculo_final_tesla,valor_vehiculo_final_tesla,valor_financiar_final_tesla,cuota_inicial_minima_tesla,cuota_maxima_tesla,plazo_tesla,valor_seguro_todo_riesgo_tesla,monto_max_24_meses_tesla,monto_max_36_meses_tesla,monto_max_48_meses_tesla,monto_max_60_meses_tesla,monto_max_72_meses_tesla,tasa_010_tesla,tasa_1120_tesla,tasa_2130_tesla,tasa_3140_tesla,tasa_4150_tesla,tasa_mayor_al_50_tesla,estado_flujo_cliente_tesla,flujo_bloqueado_tesla,motivo_bloqueo_flujo_tesla,fecha_decision_cliente_tesla,fecha_envio_formulario_aceptacion_tesla,fecha_envio_formulario_reevaluacion_tesla,submission_id_aceptacion_tesla,submission_id_reevaluacion_tesla,plazo_seleccionado_tesla,capital_financiado_tesla,cuota_total_mensual_tesla"
+    "id,rn_tesla,respuesta_final_tesla,caso_bizagi_tesla,codigo_sefi_tesla,nombre_sefi_tesla,actividad_detallada_bizagi_tesla,actividad_agrupada_bizagi_tesla,modelo_vehiculo_final_tesla,valor_vehiculo_final_tesla,valor_financiar_final_tesla,cuota_inicial_minima_tesla,cuota_maxima_tesla,plazo_tesla,valor_seguro_todo_riesgo_tesla,monto_max_24_meses_tesla,monto_max_36_meses_tesla,monto_max_48_meses_tesla,monto_max_60_meses_tesla,monto_max_72_meses_tesla,tasa_010_tesla,tasa_1120_tesla,tasa_2130_tesla,tasa_3140_tesla,tasa_4150_tesla,tasa_mayor_al_50_tesla,estado_flujo_cliente_tesla,flujo_bloqueado_tesla,motivo_bloqueo_flujo_tesla,fecha_decision_cliente_tesla,decision_cliente,fecha_envio_formulario_aceptacion_tesla,fecha_envio_formulario_reevaluacion_tesla,submission_id_aceptacion_tesla,submission_id_reevaluacion_tesla,plazo_seleccionado_tesla,capital_financiado_tesla,cuota_total_mensual_tesla"
   ) %}
 
   {% if clientes and clientes.total > 0 %}
@@ -555,10 +555,10 @@
         <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">Volver a intentar</a>
       </div>
     </section>
-    <!--
+    
     <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
         Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
-    </pre>-->
+    </pre>
   </main>
 </section>
 
@@ -667,7 +667,9 @@
       motivoBloqueoFlujoTesla: "{{ negocio.motivo_bloqueo_flujo_tesla|escapejs if negocio_encontrado and negocio.motivo_bloqueo_flujo_tesla else '' }}"
     },
 
-    debug: false,
+    decisionCliente: "{{ negocio.decision_cliente|escapejs if negocio_encontrado and negocio.decision_cliente else '' }}",
+
+    debug: true,
 
     forms: {
       aceptar: {
