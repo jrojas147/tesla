@@ -474,9 +474,7 @@
       result.canAccept = !!result.acceptFormId;
       result.reason = result.canAccept ? null : 'FORM_PREAPROBADO_NO_CONFIGURADO';
       return result;
-    }
-
-    if (normalized.indexOf('aprob') !== -1) {
+    } else if (normalized.indexOf('aprob') !== -1) {
       result.normalized = 'aprobado';
       result.acceptFormId = (RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.aprobado) || '';
       result.acceptTitle = 'ESTÁS A PUNTO DE OBTENER TU CRÉDITO DE VEHÍCULO';
