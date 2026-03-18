@@ -503,7 +503,7 @@
   function waitForHubspotForms() {
     return new Promise(function (resolve, reject) {
       var attempts = 0;
-      var maxAttempts = 80;
+      var maxAttempts = 20;
 
       function isReady() {
         return !!(window.hbspt && window.hbspt.forms && typeof window.hbspt.forms.create === 'function');
@@ -527,7 +527,7 @@
           clearInterval(timer);
           reject(new Error('HubSpot Forms no quedó disponible en window.hbspt.'));
         }
-      }, 250);
+      }, 50);
     });
   }
 
@@ -587,27 +587,32 @@
           return loadHubspotFormsScriptIfNeeded();
         })
         .then(function () {
-          if (frameHasFormContent(targetEl)) {
-            resolve();
-            return;
-          }
           targetEl.innerHTML = '';
-          var mountId = targetEl.id;
-          if (!mountId) {
-            mountId = 'hs-form-mount-' + Math.random().toString(36).slice(2, 8);
-            targetEl.id = mountId;
-          }
+
+          var mountId = 'hs-form-mount-' + Math.random().toString(36).slice(2, 10);
+          var mountNode = document.createElement('div');
+          mountNode.id = mountId;
+          targetEl.appendChild(mountNode);
+
           window.hbspt.forms.create({
             region: 'na1',
             portalId: '44539823',
             formId: formIdStr,
             target: '#' + mountId
           });
+
+          Logger.functional('renderHubspotForm.create', {
+            formId: formIdStr,
+            targetId: mountId
+          });
+
           resolve();
         })
-        .catch(reject);
+        .catch(function (err) {
+          reject(err);
+        });
     });
-  }
+  }   
 
   function configurarFormularioAceptacion(flowResult) {
     STATE.flow.respuestaFinalRaw = flowResult.raw;
@@ -634,8 +639,6 @@
       });
     }
 
-    var canAcceptNow = !!(STATE.flow.acceptFormReady && STATE.flow.acceptFormId);
-
     setText(DOM.page3Title, flowResult.acceptTitle || 'CONTINÚA CON TU SOLICITUD');
     setText(DOM.page3Description, flowResult.acceptDescription || '');
 
@@ -648,16 +651,21 @@
       }
     }
 
-    if (!canAcceptNow) {
+    if (!STATE.flow.acceptFormReady || !STATE.flow.acceptFormId) {
       hide(DOM.acceptFormContainer);
       show(DOM.acceptFormConfigError);
       if (DOM.acceptFormErrorDetail) {
-        DOM.acceptFormErrorDetail.textContent = 'No hay formId configurado para este flujo (aprobado/preaprobado). Revisa forms.aceptar en la plantilla.';
+        DOM.acceptFormErrorDetail.textContent =
+          'No hay formId configurado para este flujo. Revisa forms.aceptar en la plantilla.';
         DOM.acceptFormErrorDetail.classList.remove('hide');
       }
-      Logger.configError('Flujo sin formulario de aceptación configurado', flowResult);
+      Logger.configError('Flujo sin formulario de aceptación configurado', {
+        flowResult: flowResult,
+        acceptFormReady: STATE.flow.acceptFormReady,
+        acceptFormId: STATE.flow.acceptFormId
+      });
       return;
-    }
+    } 
 
     hide(DOM.acceptFormConfigError);
     if (DOM.acceptFormErrorDetail) {
@@ -667,14 +675,14 @@
     show(DOM.acceptFormContainer);
 
     if (DOM.acceptFormFrame) {
-      DOM.acceptFormFrame.setAttribute('data-form-id', String(STATE.flow.acceptFormId || flowResult.acceptFormId || ''));
+      DOM.acceptFormFrame.setAttribute('data-form-id', flowResult.acceptFormId);
       DOM.acceptFormFrame.setAttribute('data-region', 'na1');
       DOM.acceptFormFrame.setAttribute('data-portal-id', '44539823');
     }
 
     Logger.functional('Formulario dinámico de aceptación configurado', {
       normalized: flowResult.normalized,
-      formId: STATE.flow.acceptFormId || flowResult.acceptFormId
+      formId: flowResult.acceptFormId
     });
   }
 
@@ -1092,9 +1100,7 @@
       tasa_raw_tesla: calc.tasaRaw,
       tasa_normalizada_tesla: calc.tasaNormalizada,
       tasa_mostrada_tesla: calc.tasaMostrada,
-
-      seguro_auto_seleccionado_tesla: calc.seguros.autoSeleccionado,
-      seguro_desempleo_seleccionado_tesla: calc.seguros.desempleoSeleccionado,
+      
       valor_seguro_vida_tesla: calc.seguros.valorSeguroVida,
       valor_seguro_auto_tesla: calc.seguros.valorSeguroAuto,
       valor_seguro_desempleo_tesla: calc.seguros.valorSeguroDesempleo,
@@ -1614,11 +1620,11 @@
   }
 
   function runInitWhenReady() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-        setTimeout(init, 0);
-    }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+      setTimeout(init, 0);
+  }
   }
   function ensureDesistirFormRendered() {
     var desistirFormId = RAW.forms && RAW.forms.desistir ? RAW.forms.desistir : '';
