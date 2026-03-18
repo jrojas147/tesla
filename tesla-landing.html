@@ -157,6 +157,7 @@
 {% set HS_FORM_ACEPTAR_APROBADO = "8a3ec946-c675-4df1-b226-bfe51c154374" %}
 {% set HS_FORM_ACEPTAR_PREAPROBADO = "11169284-eb96-4629-bc25-1d7a785ce4d0" %}
 {% set HS_FORM_REEVALUAR = "f4ff3f58-b767-4c53-bc7e-bc2c52686309" %}
+{% set HS_FORM_DESISTIR = "e827eacc-a129-4a3a-b96a-4cdbff1fcb2b" %}
 
 {% set cliente_valido = cliente_encontrado
   and cliente.cedula_final_tesla
@@ -280,7 +281,7 @@
     </div>
 
     <section id="page-1" class="form-view {% if mostrar_oferta or mostrar_error %}hide{% endif %}" {% if mostrar_error %}style="display: none !important;"{% endif %}>
-      <div class="titleLogin"><h3>Valida tu solicitudD</h3></div>
+      <div class="titleLogin"><h3>Valida tu solicitud</h3></div>
 
       <form id="login-form" method="get">
         <div class="field-group">
@@ -313,6 +314,10 @@
           <button id="btn-continue" type="submit" class="btnPrimario" style="width: 100%;">
             CONTINUAR
           </button>
+
+          <div id="login-error" class="{% if not mostrar_error %}hide{% endif %}" style="color: var(--rojo-santander); font-weight: bold; text-align: center; margin-top: 15px; width: 100%;">
+            Ocurrió un error al cargar la oferta. Verifica los datos o contacta soporte.
+          </div>
         </div>
       </form>
     </section>
@@ -347,7 +352,7 @@
         </div>
       </div>
 
-      <div class="titleLogin" style="margin-top: 30px;"><h3>Simulador de Cuota</h3></div>
+      <div class="titleLogin" style="margin-top: 30px;"><h3>Configura tu producto</h3></div>
 
       <div class="calculator-box">
         <div class="field-group">
@@ -405,11 +410,11 @@
               <td class="value" id="res-base">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro Todo Riesgo</td>
+              <td class="label">Seguro Auto Todo Riesgo</td>
               <td class="value" id="res-auto">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro de Vida (Obligatorio)</td>
+              <td class="label">Seguro de Vida (Incluido)</td>
               <td class="value" id="res-vida">$0</td>
             </tr>
             <tr>
@@ -450,7 +455,7 @@
         Continúa registrando la información necesaria para obtener tu crédito de vehículo.
       </p>
 
-      <div id="page-3-flow-badge" class="flow-badge hide"></div>
+      <!--<div id="page-3-flow-badge" class="flow-badge hide"></div>-->
 
       <div id="accept-form-config-error" class="page-alert page-alert--error hide">
         <p>El formulario para este flujo no está parametrizado o no se pudo cargar.</p>
@@ -500,7 +505,18 @@
       <p class="page3-description" style="text-align: center; color: var(--gris-medio); line-height: 1.5;">
         Lamentamos que no aceptes la oferta. Te esperamos para una próxima oportunidad.
       </p>
-
+      <div id="desistir-form-config-error" class="page-alert page-alert--error hide">
+        El formulario de desistimiento no se pudo cargar.
+      </div>
+      <div id="desistir-form-container" class="hide">
+        <div
+          id="desistir-form-frame"
+          class="hs-form-frame"
+          data-region="na1"
+          data-form-id="{{ HS_FORM_DESISTIR }}"
+          data-portal-id="44539823">
+        </div>
+       </div>
       <div class="contentButton" style="margin-top: 25px; justify-content: center;">
         <button type="button" id="btn-volver-inicio" class="btnPrimario" onclick="if(window.TeslaIrASeccion1) window.TeslaIrASeccion1();">
           VOLVER AL INICIO
@@ -539,10 +555,10 @@
         <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">Volver a intentar</a>
       </div>
     </section>
-
+    <!--
     <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
-Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
-</pre>
+        Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
+    </pre>-->
   </main>
 </section>
 
@@ -593,7 +609,16 @@ Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ m
     </div>
   </div>
 </div>
+<button onclick="testAPI()">Probar API</button>
 
+<script>
+async function testAPI() {
+  const res = await fetch("/_hcms/api/prueba");
+  const data = await res.json();
+  console.log(data);
+  alert(data.message);
+}
+</script>
 <footer class="footer-santander">
   <div class="nav-container">
     <p>© 2026 Banco Santander Colombia S.A. Todos los derechos reservados.<br>Vigilado Superintendencia Financiera de Colombia.</p>
@@ -651,14 +676,15 @@ Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ m
       motivoBloqueoFlujoTesla: "{{ negocio.motivo_bloqueo_flujo_tesla|escapejs if negocio_encontrado and negocio.motivo_bloqueo_flujo_tesla else '' }}"
     },
 
-    debug: true,
+    debug: false,
 
     forms: {
       aceptar: {
         aprobado: "{{ HS_FORM_ACEPTAR_APROBADO|escapejs }}",
         preaprobado: "{{ HS_FORM_ACEPTAR_PREAPROBADO|escapejs }}"
       },
-      reevaluar: "{{ HS_FORM_REEVALUAR|escapejs }}"
+      reevaluar: "{{ HS_FORM_REEVALUAR|escapejs }}",
+      desistir: "{{ HS_FORM_DESISTIR|escapejs }}"
     },
 
     // Para que los datos lleguen al objeto Negocios TESLA: crear workflow en HubSpot
@@ -666,12 +692,10 @@ Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ m
     // el registro de Negocios TESLA (buscar por negocio_id_tesla) con los campos
     // cuota_inicial_seleccionada, tasa_selecionada, plazo_seleccionado_tesla, decision_cliente.
     persistence: {
-      endpointUrl: "",
-      enabled: false,
-      requireBeforeAdvance: false,
-      timeoutMs: 12000,
-      guardarOfertaFormId: "2-59067506",
-      guardarOfertaObjectTypeId: "0-1"
+      endpointUrl: "https://tesla-vercel-api.vercel.app/api/update-negocio-tesla",
+      enabled: true,
+      requireBeforeAdvance: true,
+      timeoutMs: 12000
     }
   };
 
