@@ -1571,9 +1571,10 @@
 
     try {
       var rawDecisionCliente = config.decisionCliente;
-      console.log(rawDecisionCliente);
-      if(rawDecisionCliente === 'APROBADO' || rawDecisionCliente === 'REFERIDO' || rawDecisionCliente === 'PREAPROBADO'  || rawDecisionCliente === 'RECHAZADO'){
-        alert("es diligenciado");
+      if (rawDecisionCliente === 'APROBADO' || rawDecisionCliente === 'REFERIDO' || rawDecisionCliente === 'PREAPROBADO' || rawDecisionCliente === 'RECHAZADO') {
+        renderBlockedFlowPage();
+        mostrarPagina(6);
+        return;
       }
     } catch (e) {
       Logger.warn('No se pudo evaluar decisionCliente en init', { error: String(e && e.message ? e.message : e) });
