@@ -121,34 +121,6 @@
 
   var DOM = {};
 
-  function q(id) {
-    return document.getElementById(id);
-  }
-
-  function clone(obj) {
-    return JSON.parse(JSON.stringify(obj));
-  }
-
-  function buildSessionId() {
-    return 'tesla_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
-  }
-
-  function safeStringify(data) {
-    try {
-      return JSON.stringify(data, null, 2);
-    } catch (e) {
-      return String(data);
-    }
-  }
-
-  function fmtMoney(n) {
-    return '$' + new Intl.NumberFormat('es-CO').format(Math.round(Number(n) || 0));
-  }
-
-  function scrollTopNow() {
-    window.scrollTo(0, 0);
-  }
-
   function captureDom() {
     DOM.page1 = q('page-1');
     DOM.page2 = q('page-2');
@@ -664,6 +636,8 @@
       });
     }
 
+    var canAcceptNow = !!(STATE.flow.acceptFormReady && STATE.flow.acceptFormId);
+
     setText(DOM.page3Title, flowResult.acceptTitle || 'CONTINÚA CON TU SOLICITUD');
     setText(DOM.page3Description, flowResult.acceptDescription || '');
 
@@ -676,7 +650,7 @@
       }
     }
 
-    if (!flowResult.canAccept) {
+    if (!canAcceptNow) {
       hide(DOM.acceptFormContainer);
       show(DOM.acceptFormConfigError);
       if (DOM.acceptFormErrorDetail) {
@@ -695,14 +669,14 @@
     show(DOM.acceptFormContainer);
 
     if (DOM.acceptFormFrame) {
-      DOM.acceptFormFrame.setAttribute('data-form-id', flowResult.acceptFormId);
+      DOM.acceptFormFrame.setAttribute('data-form-id', String(STATE.flow.acceptFormId || flowResult.acceptFormId || ''));
       DOM.acceptFormFrame.setAttribute('data-region', 'na1');
       DOM.acceptFormFrame.setAttribute('data-portal-id', '44539823');
     }
 
     Logger.functional('Formulario dinámico de aceptación configurado', {
       normalized: flowResult.normalized,
-      formId: flowResult.acceptFormId
+      formId: STATE.flow.acceptFormId || flowResult.acceptFormId
     });
   }
 
