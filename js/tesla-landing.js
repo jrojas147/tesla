@@ -1555,7 +1555,6 @@
   var initAlreadyRun = false;
 
   function init() {
-    console.log(window.TESLA_DECISION_CLIENTE);
     if (initAlreadyRun) {
       Logger.warn('init ya ejecutado, se omite segunda llamada', null);
       return;
@@ -1567,6 +1566,7 @@
 
     var config = window.TESLA_CONFIG || {};
     Logger.technical('INIT RAW', config);
+
     Logger.technical('Negocio decision_cliente (desde objeto Negocios Tesla)', {
       decision_cliente: config.decisionCliente || ''
     });
