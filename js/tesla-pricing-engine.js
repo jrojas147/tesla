@@ -1,7 +1,7 @@
 (function (window) {
   'use strict';
 
-  var ENGINE_VERSION = '1.2.0';
+  var ENGINE_VERSION = '1.2.2';
   var MONTO_FINANCIADO_MINIMO = 15000000;
   var MESES_SEGURO_AUTO = 12;
   var TASA_SEGURO_DESEMPLEO = 0.055811;
@@ -435,7 +435,22 @@
       };
     }
 
-    var data = result.data;
+    var data = deepClone(result.data);
+    var sanitizedPolicyResult = deepClone(result);
+
+    if (data && Object.prototype.hasOwnProperty.call(data, 'flag_oferta_score_800')) {
+      if (!Object.prototype.hasOwnProperty.call(data, 'flag_oferta_score_950')) {
+        data.flag_oferta_score_950 = !!data.flag_oferta_score_800;
+      }
+      delete data.flag_oferta_score_800;
+    }
+
+    if (sanitizedPolicyResult && sanitizedPolicyResult.data && Object.prototype.hasOwnProperty.call(sanitizedPolicyResult.data, 'flag_oferta_score_800')) {
+      if (!Object.prototype.hasOwnProperty.call(sanitizedPolicyResult.data, 'flag_oferta_score_950')) {
+        sanitizedPolicyResult.data.flag_oferta_score_950 = !!sanitizedPolicyResult.data.flag_oferta_score_800;
+      }
+      delete sanitizedPolicyResult.data.flag_oferta_score_800;
+    }
 
     return {
       ok: true,
@@ -451,7 +466,7 @@
         tasaNormalizada: Number(data.tasa_final_nmv),
         tasaMostrada: tasaMensualADisplayPorcentaje(Number(data.tasa_final_nmv)),
         tasaFinalEA: Number.isFinite(Number(data.tasa_final_ea)) ? Number(data.tasa_final_ea) : null,
-        ratePolicyResult: deepClone(result)
+        ratePolicyResult: sanitizedPolicyResult
       }
     };
   }

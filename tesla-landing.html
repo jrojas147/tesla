@@ -360,7 +360,7 @@
 
         <div class="dataClient col-span-2">
           <div class="name">Estado de la solicitud</div>
-          <div id="step2-respuesta-final" class="value highlight-text">{{ respuesta_final_tesla if respuesta_final_tesla else "—" }}</div>
+          <div id="step2-respuesta-final" class="value highlight-text">{% if respuesta_final_tesla and respuesta_final_tesla|upper == 'REFERIDO' %}PRE-APROBADO{% elif respuesta_final_tesla %}{{ respuesta_final_tesla }}{% else %}—{% endif %}</div>
         </div>
 
         <div class="dataClient col-span-2">
@@ -594,6 +594,11 @@
       </div>
     </section>
 
+    <!--<pre id="tesla-debug-log"
+    style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
+    Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
+    </pre>-->
+
     <section id="page-7" class="form-view {% if not mostrar_error %}hide{% endif %}" {% if mostrar_error %}style="display: block !important;"{% endif %}>
       <div class="titleLogin"><h3>Ha ocurrido un error</h3></div>
       <p class="page3-description">No pudimos cargar la información solicitada. Intenta de nuevo o contacta soporte si el problema continúa.</p>
@@ -607,6 +612,8 @@
     </pre>-->
   </main>
 </section>
+
+
 
 <div id="tesla-confirm-modal" class="modal-overlay hide" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="tesla-confirm-title">
@@ -655,6 +662,7 @@
     </div>
   </div>
 </div>
+
 
 <footer class="footer-santander">
   <div class="nav-container">
