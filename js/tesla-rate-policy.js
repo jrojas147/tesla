@@ -8,8 +8,9 @@
     commercialDiscountEvNMV: 0.0003,
     unemploymentInsuranceDiscountNMV: 0.0003,
     allRiskInsuranceDiscountNMV: 0.0002,
-    fixedHighScoreNMV: 0.0119,
-    highScoreThreshold: 800,
+    fixedHighScoreNMV: 0.0124,
+    highScoreThreshold: 950,
+    fundingScoreThreshold: 800,
 
     // No incluir 84 si no está parametrizado realmente.
     allowedTerms: [24, 36, 48, 60, 72],
@@ -363,9 +364,12 @@
       return buildError('PM_NOT_PARAMETRIZED', 'No existe parametrización de probabilidad de mora para la combinación informada.');
     }
 
-    var flagOfertaScore800 = input.score_tesla >= CONFIG.highScoreThreshold;
-    var fundingCostTable = flagOfertaScore800 ? CONFIG.fundingCostByTerm : CONFIG.fundingCostByTermLowScore;
-    var usuryAnnual = flagOfertaScore800 ? CONFIG.usuryAnnual : CONFIG.usuryAnnualLowScore;
+    var flagSegmentoFondeoScore800 = input.score_tesla >= CONFIG.fundingScoreThreshold;
+    var flagOfertaScore950 = input.score_tesla >= CONFIG.highScoreThreshold;
+    var fundingCostTable = flagSegmentoFondeoScore800 ? CONFIG.fundingCostByTerm : CONFIG.fundingCostByTermLowScore;
+    var fundingCostTableName = flagSegmentoFondeoScore800 ? 'fundingCostByTerm' : 'fundingCostByTermLowScore';
+    var usuryAnnual = flagSegmentoFondeoScore800 ? CONFIG.usuryAnnual : CONFIG.usuryAnnualLowScore;
+    var usuryAnnualName = flagSegmentoFondeoScore800 ? 'usuryAnnual' : 'usuryAnnualLowScore';
     var costoFondosNMV = fundingCostTable[input.plazo_tesla];
 
     if (!Number.isFinite(costoFondosNMV)) {
@@ -393,7 +397,7 @@
     if (tasaModeloBrutaNMV > tasaTechoNMV) tasaBaseV2NMV = tasaTechoNMV;
     else if (tasaModeloBrutaNMV < tasaPisoNMV) tasaBaseV2NMV = tasaPisoNMV;
 
-    var descuentoComercialNMV = flagOfertaScore800 ? 0 : (CONFIG.commercialDiscountLifeNMV + CONFIG.commercialDiscountEvNMV);
+    var descuentoComercialNMV = flagOfertaScore950 ? 0 : (CONFIG.commercialDiscountLifeNMV + CONFIG.commercialDiscountEvNMV);
     var descuentoSeguroDesempleoNMV = input.seguro_desempleo_tesla ? CONFIG.unemploymentInsuranceDiscountNMV : 0;
     var descuentoSeguroTodoRiesgoNMV = input.seguro_todo_riesgo_tesla ? CONFIG.allRiskInsuranceDiscountNMV : 0;
     var descuentoChecksNMV = descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV;
@@ -403,10 +407,10 @@
     var tasaFinalPostChecksNMV;
     var motivoTasaFinal;
 
-    if (flagOfertaScore800) {
+    if (flagOfertaScore950) {
       tasaFinalPreChecksNMV = CONFIG.fixedHighScoreNMV;
       tasaFinalPostChecksNMV = CONFIG.fixedHighScoreNMV - descuentoChecksNMV;
-      motivoTasaFinal = descuentoChecksNMV > 0 ? 'Oferta score >= 800 + Seguros opcionales' : 'Oferta score >= 800';
+      motivoTasaFinal = descuentoChecksNMV > 0 ? 'Oferta score >= 950 + Seguros opcionales' : 'Oferta score >= 950';
     } else {
       var tasaPostChecksRawNMV = tasaBaseV2NMV - descuentoTotalComercialNMV;
       tasaFinalPreChecksNMV = tasaBaseV2NMV - descuentoComercialNMV;
@@ -464,7 +468,11 @@
       tasa_final_nmv: tasaFinalPostChecksNMV,
       tasa_final_ea: tasaFinalEA,
       motivo_tasa_final: motivoTasaFinal,
-      flag_oferta_score_800: flagOfertaScore800
+      flag_segmento_fondeo_score_800: flagSegmentoFondeoScore800,
+      tabla_costo_fondos_aplicada: fundingCostTableName,
+      tasa_usura_aplicada: usuryAnnual,
+      nombre_tasa_usura_aplicada: usuryAnnualName,
+      flag_oferta_score_950: flagOfertaScore950
     });
   }
 
