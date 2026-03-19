@@ -732,12 +732,31 @@
   }
 
   function ensureReevaluarFormRendered() {
-    var reevaluarFormId = RAW.forms && RAW.forms.reevaluar ? RAW.forms.reevaluar : '';
+    var normalized = STATE.flow.normalized || '';
+
+    // Selección del formulario según flujo
+    var reevaluarFormId = '';
+    if (normalized === 'aprobado') {
+      reevaluarFormId = (RAW.forms && RAW.forms.reevaluarAprobado) ? RAW.forms.reevaluarAprobado : '';
+    } else if (normalized === 'preaprobado' || normalized === 'referido') {
+      reevaluarFormId = (RAW.forms && RAW.forms.reevaluarPreaprobado) ? RAW.forms.reevaluarPreaprobado : '';
+    }
+
+    // Fallback al form genérico si no hay uno específico
+    if (!reevaluarFormId) {
+      reevaluarFormId = (RAW.forms && RAW.forms.reevaluar) ? RAW.forms.reevaluar : '';
+      Logger.warn('Usando formulario de reevaluación genérico como fallback', {
+        normalized: normalized,
+        fallbackFormId: reevaluarFormId
+      });
+    }
 
     if (!reevaluarFormId) {
       if (DOM.reevaluarFormConfigError) show(DOM.reevaluarFormConfigError);
       if (DOM.reevaluarFormContainer) hide(DOM.reevaluarFormContainer);
-      Logger.configError('No existe formulario de reevaluación configurado', null);
+      Logger.configError('No existe formulario de reevaluación configurado', {
+        normalized: normalized
+      });
       return Promise.reject(new Error('Formulario de reevaluación no configurado.'));
     }
 
@@ -756,15 +775,16 @@
     return renderHubspotForm(DOM.reevaluarFormFrame, reevaluarFormId)
       .then(function () {
         Logger.functional('Formulario de reevaluación renderizado', {
-          formId: reevaluarFormId
+          formId: reevaluarFormId,
+          normalized: normalized
         });
       })
       .catch(function (err) {
         if (DOM.reevaluarFormContainer) hide(DOM.reevaluarFormContainer);
         if (DOM.reevaluarFormConfigError) show(DOM.reevaluarFormConfigError);
-
         Logger.configError('Error renderizando formulario de reevaluación', {
           formId: reevaluarFormId,
+          normalized: normalized,
           error: err && err.message ? err.message : String(err)
         });
         throw err;
