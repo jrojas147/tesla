@@ -1596,7 +1596,7 @@
 
     try {
       var rawDecisionCliente = config.decisionCliente;
-      if (rawDecisionCliente === 'APROBADO' || rawDecisionCliente === 'REFERIDO' || rawDecisionCliente === 'PREAPROBADO' || rawDecisionCliente === 'RECHAZADO') {
+      if (rawDecisionCliente === 'APROBADO' || rawDecisionCliente === 'REEVALUAR' ||  rawDecisionCliente === 'RECHAZADO') {
         renderBlockedFlowPage();
         mostrarPagina(6);
         return;
