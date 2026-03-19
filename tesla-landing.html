@@ -153,12 +153,14 @@
 {% if negocio_encontrado and negocio.respuesta_final_tesla %}
   {% set respuesta_final_tesla = negocio.respuesta_final_tesla|string|trim %}
 {% endif %}
-  
+
 {% set respuesta_es_referido = respuesta_final_tesla and 'REFERIDO' in (respuesta_final_tesla|upper|string) %}
 
 {% set HS_FORM_ACEPTAR_APROBADO = "8a3ec946-c675-4df1-b226-bfe51c154374" %}
 {% set HS_FORM_ACEPTAR_PREAPROBADO = "11169284-eb96-4629-bc25-1d7a785ce4d0" %}
-{% set HS_FORM_REEVALUAR = "f4ff3f58-b767-4c53-bc7e-bc2c52686309" %}
+{% set HS_FORM_REEVALUAR_APROBADO = "1c4c73b7-d601-4f89-822f-954aaa58bc06" %}
+{% set HS_FORM_REEVALUAR_PREAPROBADO = "201f2749-2257-4f5a-8355-9633d654eb9b" %}
+
 {% set HS_FORM_DESISTIR = "e827eacc-a129-4a3a-b96a-4cdbff1fcb2b" %}
 
 {% set cliente_valido = cliente_encontrado
@@ -531,7 +533,7 @@
           id="reevaluar-form-frame"
           class="hs-form-frame"
           data-region="na1"
-          data-form-id="{{ HS_FORM_REEVALUAR }}"
+          data-form-id=""
           data-portal-id="44539823">
         </div>
       </div>
@@ -558,7 +560,7 @@
           data-form-id="{{ HS_FORM_DESISTIR }}"
           data-portal-id="44539823">
         </div>
-      </div>
+       </div>
 
       <div class="contentButton" style="margin-top: 25px; justify-content: center;">
         <button type="button" id="btn-volver-inicio" class="btnPrimario" onclick="if(window.TeslaIrASeccion1) window.TeslaIrASeccion1();">
@@ -606,6 +608,10 @@
         <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">VOLVER A INTENTAR</a>
       </div>
     </section>
+    <!--
+    <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
+        Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
+    </pre>-->
   </main>
 </section>
 
@@ -728,10 +734,15 @@
         preaprobado: "{{ HS_FORM_ACEPTAR_PREAPROBADO|escapejs }}",
         referido: "{{ HS_FORM_ACEPTAR_PREAPROBADO|escapejs }}"
       },
-      reevaluar: "{{ HS_FORM_REEVALUAR|escapejs }}",
+      reevaluarAprobado: "{{ HS_FORM_REEVALUAR_APROBADO|escapejs }}",
+      reevaluarPreaprobado: "{{ HS_FORM_REEVALUAR_PREAPROBADO|escapejs }}",
       desistir: "{{ HS_FORM_DESISTIR|escapejs }}"
     },
 
+    // Para que los datos lleguen al objeto Negocios TESLA: crear workflow en HubSpot
+    // que se dispare con "Form submission" del formulario 2-59067506 y actualice
+    // el registro de Negocios TESLA (buscar por negocio_id_tesla) con los campos
+    // cuota_inicial_seleccionada, tasa_selecionada, plazo_seleccionado_tesla, decision_cliente.
     persistence: {
       endpointUrl: "https://tesla-vercel-api.vercel.app/api/update-negocio-tesla",
       enabled: true,
