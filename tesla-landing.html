@@ -358,7 +358,7 @@
 
         <div class="dataClient col-span-2">
           <div class="name">Estado de la solicitud</div>
-          <div id="step2-respuesta-final" class="value highlight-text">{{ respuesta_final_tesla if respuesta_final_tesla else "—" }}</div>
+          <div id="step2-respuesta-final" class="value highlight-text">{% if respuesta_final_tesla and respuesta_final_tesla|upper == 'REFERIDO' %}PRE-APROBADO{% elif respuesta_final_tesla %}{{ respuesta_final_tesla }}{% else %}—{% endif %}</div>
         </div>
 
         <div class="dataClient col-span-2">
