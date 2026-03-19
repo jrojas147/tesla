@@ -9,7 +9,7 @@
   <title>{{ page_meta.html_title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {{ standard_header_includes }}
-  <link rel="stylesheet" href="{{ get_asset_url('/TeslaJR/css/tesla-modern.css') }}">
+  <link rel="stylesheet" href="{{ get_asset_url('/Tesla/css/tesla-modern.css') }}">
 </head>
 <body>
 
@@ -240,7 +240,7 @@
   <aside class="car-container">
     <div class="car-header">
       <h1 class="car-header-title">¡Bienvenidos!</h1>
-      <p>Tu crédito <strong>TESLA</strong></p>
+      <p>Conoce tu oferta de crédito <strong>TESLA</strong></p>
       {% if img_modelo %}
         <img class="img-ref-car js-car-img" src="{{ img_modelo }}" alt="Vehículo Tesla">
       {% endif %}
@@ -281,7 +281,7 @@
     </div>
 
     <section id="page-1" class="form-view {% if mostrar_oferta or mostrar_error %}hide{% endif %}" {% if mostrar_error %}style="display: none !important;"{% endif %}>
-      <div class="titleLogin"><h3>Valida tu solicitudD</h3></div>
+      <div class="titleLogin"><h3>Consulta tu oferta</h3></div>
 
       <form id="login-form" method="get">
         <div class="field-group">
@@ -298,7 +298,13 @@
         </div>
 
         <div class="field-group">
-          <label for="input-rn">Número RN</label>
+          <label for="input-rn">Número RN
+          <span class="tooltip-wrapper" tabindex="0" aria-label="Información sobre el número RN">
+              <span class="tooltip-trigger" aria-hidden="true">i</span>
+              <span class="tooltip-content" role="tooltip">
+                Es el número de radicado de tu solicitud. Lo encuentras fácilmente ingresando a tu aplicación de Tesla.
+              </span>
+          </span></label>
           <input
             id="input-rn"
             name="rn"
@@ -330,7 +336,7 @@
         </div>
 
         <div class="dataClient col-span-2">
-          <div class="name">Respuesta final</div>
+          <div class="name">Estado de la solicitud</div>
           <div id="step2-respuesta-final" class="value highlight-text">{{ respuesta_final_tesla if respuesta_final_tesla else "—" }}</div>
         </div>
 
@@ -352,7 +358,7 @@
         </div>
       </div>
 
-      <div class="titleLogin" style="margin-top: 30px;"><h3>Simulador de Cuota</h3></div>
+      <div class="titleLogin" style="margin-top: 30px;"><h3>Configura tu producto</h3></div>
 
       <div class="calculator-box">
         <div class="field-group">
@@ -406,23 +412,23 @@
         <table class="summary-table">
           <tbody>
             <tr>
-              <td class="label">Cuota Base (Capital + Interés)</td>
+              <td class="label">Cuota base (capital + interés)</td>
               <td class="value" id="res-base">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro Todo Riesgo</td>
+              <td class="label">Seguro auto todo riesgo</td>
               <td class="value" id="res-auto">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro de Vida (Obligatorio)</td>
+              <td class="label">Seguro de vida (incluido)</td>
               <td class="value" id="res-vida">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro Desempleo</td>
+              <td class="label">Seguro desempleo</td>
               <td class="value" id="res-desempleo">$0</td>
             </tr>
             <tr class="total">
-              <td class="label">Cuota Total Mensual</td>
+              <td class="label">Cuota total mensual estimada</td>
               <td class="value total-val" id="res-total">$0</td>
             </tr>
           </tbody>
@@ -556,9 +562,9 @@
       </div>
     </section>
     
-    <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
+    <!-- <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
         Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
-    </pre>
+    </pre>-->
   </main>
 </section>
 
@@ -721,9 +727,9 @@
 </script>
 
 <script src="https://js.hsforms.net/forms/embed/44539823.js" defer></script>
-<script src="{{ get_asset_url('/tesla_cms/js/tesla-rate-policy.js') }}"></script>
-<script src="{{ get_asset_url('/tesla_cms/js/tesla-pricing-engine.js') }}"></script>
-<script src="{{ get_asset_url('/tesla_cms/js/tesla-landing.js') }}?v=referido2"></script>
+<script src="{{ get_asset_url('/Tesla/js/tesla-rate-policy.js') }}"></script>
+<script src="{{ get_asset_url('/Tesla/js/tesla-pricing-engine.js') }}"></script>
+<script src="{{ get_asset_url('/Tesla/js/tesla-landing.js') }}?v=referido2"></script>
 
 </body>
 </html>
