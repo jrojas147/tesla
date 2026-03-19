@@ -153,6 +153,8 @@
 {% if negocio_encontrado and negocio.respuesta_final_tesla %}
   {% set respuesta_final_tesla = negocio.respuesta_final_tesla|string|trim %}
 {% endif %}
+  
+{% set respuesta_es_referido = respuesta_final_tesla and 'REFERIDO' in (respuesta_final_tesla|upper|string) %}
 
 {% set HS_FORM_ACEPTAR_APROBADO = "8a3ec946-c675-4df1-b226-bfe51c154374" %}
 {% set HS_FORM_ACEPTAR_PREAPROBADO = "11169284-eb96-4629-bc25-1d7a785ce4d0" %}
@@ -227,7 +229,22 @@
 {% endif %}
 
 {% if mostrar_error %}
-<style id="tesla-error-styles">#main-form-content #page-1,#main-form-content .stepper-container{display:none!important}#main-form-content #page-7{display:block!important;visibility:visible!important}</style>
+<style id="tesla-error-styles">
+  #main-form-content #page-1,
+  #main-form-content .stepper-container {
+    display: none !important;
+  }
+  #main-form-content #page-7 {
+    display: block !important;
+    visibility: visible !important;
+  }
+  /* Estilo añadido para integrar visualmente el logo de 'Vigilado' */
+  .logo-vigilado {
+    height: 30px; /* Ajusta la altura según prefieras */
+    vertical-align: middle; /* Centrado vertical con respecto a la línea de texto */
+    margin-top: 5px; /* Espacio sutil por encima */
+  }
+</style>
 {% endif %}
 
 <header class="navbar-santander">
@@ -239,7 +256,7 @@
 <section class="page-container">
   <aside class="car-container">
     <div class="car-header">
-      <h1 class="car-header-title">¡Bienvenidos!</h1>
+      <h1 class="car-header-title">¡Bienvenido!</h1>
       <p>Conoce tu oferta de crédito <strong>TESLA</strong></p>
       {% if img_modelo %}
         <img class="img-ref-car js-car-img" src="{{ img_modelo }}" alt="Vehículo Tesla">
@@ -298,19 +315,23 @@
         </div>
 
         <div class="field-group">
-          <label for="input-rn">Número RN
-          <span class="tooltip-wrapper" tabindex="0" aria-label="Información sobre el número RN">
-              <span class="tooltip-trigger" aria-hidden="true">i</span>
-              <span class="tooltip-content" role="tooltip">
-                Es el número de radicado de tu solicitud. Lo encuentras fácilmente ingresando a tu aplicación de Tesla.
-              </span>
-          </span></label>
+          <label for="input-rn" class="label-with-help">
+          <span>Número RN</span>
+
+      <span class="tooltip-wrapper" tabindex="0" aria-label="Información sobre el número RN">
+        <span class="tooltip-trigger" aria-hidden="true">i</span>
+          <span class="tooltip-content" role="tooltip">
+             Es el número de radicado de tu solicitud. Lo encuentras fácilmente ingresando a tu aplicación de Tesla.
+          </span>
+       </span>
+      </label>
+
           <input
             id="input-rn"
             name="rn"
             type="text"
             maxlength="40"
-            placeholder="Ingresa el número de radicado"
+            placeholder="Ingresa tu número RN"
             autocomplete="off"
             value="{{ rn_q|escape_attr }}"
           >
@@ -322,7 +343,7 @@
           </button>
 
           <div id="login-error" class="{% if not mostrar_error %}hide{% endif %}" style="color: var(--rojo-santander); font-weight: bold; text-align: center; margin-top: 15px; width: 100%;">
-            Ocurrió un error al cargar la oferta. Verifica los datos o contacta soporte.
+            No pudimos cargar tu oferta. Por favor, revisa que tus datos sean correctos o contacta a soporte.
           </div>
         </div>
       </form>
@@ -331,7 +352,7 @@
     <section id="page-2" class="form-view {% if not mostrar_oferta %}hide{% endif %}">
       <div class="step2-client-info">
         <div class="dataClient col-span-2">
-          <div class="name">Nombre del Titular</div>
+          <div class="name">Nombre del titular</div>
           <div id="step2-nombre" class="value highlight-text">{{ nombre_cliente }}</div>
         </div>
 
@@ -346,12 +367,12 @@
         </div>
 
         <div class="dataClient top-border">
-          <div class="name">Modelo del Vehículo</div>
+          <div class="name">Modelo del vehículo</div>
           <div id="step2-modelo" class="value">{{ nombre_modelo }}</div>
         </div>
 
         <div class="dataClient top-border">
-          <div class="name">Valor del Vehículo</div>
+          <div class="name">Valor del vehículo</div>
           <div id="step2-valor-carro" class="value" data-valor-vehiculo="{{ valor_vehiculo }}">
             ${{ valor_vehiculo }}
           </div>
@@ -363,7 +384,7 @@
       <div class="calculator-box">
         <div class="field-group">
           <label>
-            Cuota Inicial:
+            Cuota inicial:
             <strong id="val-range-label" style="color:var(--rojo-santander); font-size: 18px;">$0</strong>
           </label>
           <input
@@ -382,7 +403,7 @@
 
         <div class="calc-grid">
           <div class="field-group">
-            <label>Tasa Aprobada (NMV)</label>
+            <label>Tasa aprobada (NMV)</label>
             <div id="display-tasa" class="readonly-box">0.00%</div>
           </div>
           <div class="field-group">
@@ -396,17 +417,17 @@
 
         <div class="options-seguros">
           <label class="check-item">
-            <input id="check-auto" type="checkbox" checked> Seguro Auto Todo Riesgo
+            <input id="check-auto" type="checkbox" checked> Seguro auto todo riesgo
           </label>
           <label class="check-item">
-            <input id="check-desempleo" type="checkbox" checked> Seguro Desempleo
+            <input id="check-desempleo" type="checkbox" checked> Seguro desempleo
           </label>
         </div>
       </div>
 
       <div class="summary-wrapper">
         <div class="resumen-header">
-          <span>Valor a Financiar (Capital):</span>
+          <span>Valor a financiar (capital):</span>
           <strong id="lbl-capital">$0</strong>
         </div>
         <table class="summary-table">
@@ -435,6 +456,21 @@
         </table>
       </div>
 
+      <div class="disclaimer-box" aria-label="Condiciones de la simulación">
+        <div class="disclaimer-item">
+          <span class="disclaimer-bullet">•</span>
+          <p>El valor de los seguros corresponde a la prima mensual y no te genera intereses.</p>
+        </div>
+        <div class="disclaimer-item">
+          <span class="disclaimer-bullet">•</span>
+          <p>La tasa de interés mostrada es el valor exacto aprobado exclusivamente para ti.</p>
+        </div>
+        <div class="disclaimer-item">
+          <span class="disclaimer-bullet">•</span>
+          <p>Esta simulación está sujeta a validación final, disponibilidad y políticas de crédito vigentes.</p>
+        </div>
+      </div>
+
       <div id="general-config-error" class="page-alert page-alert--error hide" style="margin-top: 20px;">
         No fue posible construir la oferta porque faltan datos críticos de configuración.
       </div>
@@ -458,10 +494,8 @@
       </div>
 
       <p id="page-3-description" class="page3-description">
-        Continúa registrando la información necesaria para obtener tu crédito de vehículo.
+        Completa la información requerida para continuar con tu proceso.
       </p>
-
-      <!--<div id="page-3-flow-badge" class="flow-badge hide"></div>-->
 
       <div id="accept-form-config-error" class="page-alert page-alert--error hide">
         <p>El formulario para este flujo no está parametrizado o no se pudo cargar.</p>
@@ -481,11 +515,11 @@
 
     <section id="page-4" class="form-view hide">
       <div class="titleLogin">
-        <h3>RE-EVALUAR CUOTA INICIAL CRÉDITO</h3>
+        <h3>RE-EVALUAR CUOTA INICIAL</h3>
       </div>
 
       <p class="page3-description">
-        Completa el formulario para solicitar la re-evaluación de tu cuota inicial.
+        Completa el formulario para solicitar una re-evaluación de tu cuota inicial.
       </p>
 
       <div id="reevaluar-form-config-error" class="page-alert page-alert--error hide">
@@ -505,15 +539,17 @@
 
     <section id="page-5" class="form-view hide">
       <div class="titleLogin">
-        <h3>Rechazo de Oferta Santander</h3>
+        <h3>Has declinado la oferta</h3>
       </div>
 
-      <p class="page3-description" style="text-align: center; color: var(--gris-medio); line-height: 1.5;">
-        Lamentamos que no aceptes la oferta. Te esperamos para una próxima oportunidad.
+      <p class="page3-description">
+        Entendemos que no desees continuar en este momento. Si cambias de opinión más adelante, aquí estaremos para acompañarte.
       </p>
+
       <div id="desistir-form-config-error" class="page-alert page-alert--error hide">
         El formulario de desistimiento no se pudo cargar.
       </div>
+
       <div id="desistir-form-container" class="hide">
         <div
           id="desistir-form-frame"
@@ -522,7 +558,8 @@
           data-form-id="{{ HS_FORM_DESISTIR }}"
           data-portal-id="44539823">
         </div>
-       </div>
+      </div>
+
       <div class="contentButton" style="margin-top: 25px; justify-content: center;">
         <button type="button" id="btn-volver-inicio" class="btnPrimario" onclick="if(window.TeslaIrASeccion1) window.TeslaIrASeccion1();">
           VOLVER AL INICIO
@@ -532,11 +569,11 @@
 
     <section id="page-6" class="form-view hide">
       <div class="titleLogin">
-        <h3 id="blocked-flow-title">TU SOLICITUD SIGUE EN PROCESO</h3>
+        <h3 id="blocked-flow-title">Tu solicitud ya está en proceso</h3>
       </div>
 
       <p id="blocked-flow-description" class="page3-description">
-        Ya registramos tu gestión anterior. En este momento no es necesario volver a diligenciar el formulario.
+        Detectamos que ya realizaste este paso previamente, por lo que no es necesario que vuelvas a llenar la información.
       </p>
 
       <div class="summary-wrapper" style="margin-top: 20px;">
@@ -554,17 +591,14 @@
         </table>
       </div>
     </section>
+
     <section id="page-7" class="form-view {% if not mostrar_error %}hide{% endif %}" {% if mostrar_error %}style="display: block !important;"{% endif %}>
       <div class="titleLogin"><h3>Ha ocurrido un error</h3></div>
-      <p class="page3-description">No pudimos cargar la información solicitada. Por favor intenta de nuevo o contacta a soporte si el problema continúa.</p>
+      <p class="page3-description">No pudimos cargar la información solicitada. Intenta de nuevo o contacta soporte si el problema continúa.</p>
       <div class="contentButton" style="margin-top: 25px; flex-direction: column;">
-        <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">Volver a intentar</a>
+        <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">VOLVER A INTENTAR</a>
       </div>
     </section>
-    
-    <!-- <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
-        Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
-    </pre>-->
   </main>
 </section>
 
@@ -575,11 +609,11 @@
     </div>
 
     <div class="modal-body">
-      <p>Estás a punto de aceptar la oferta con la configuración actual.</p>
+      <p>Estás a un paso de tener tu Tesla. Confirma las condiciones de tu oferta para continuar.</p>
 
       <div class="modal-summary">
         <div class="modal-summary-row">
-          <span>Respuesta final</span>
+          <span>Estado</span>
           <strong id="modal-respuesta-final">—</strong>
         </div>
         <div class="modal-summary-row">
@@ -688,10 +722,6 @@
       desistir: "{{ HS_FORM_DESISTIR|escapejs }}"
     },
 
-    // Para que los datos lleguen al objeto Negocios TESLA: crear workflow en HubSpot
-    // que se dispare con "Form submission" del formulario 2-59067506 y actualice
-    // el registro de Negocios TESLA (buscar por negocio_id_tesla) con los campos
-    // cuota_inicial_seleccionada, tasa_selecionada, plazo_seleccionado_tesla, decision_cliente.
     persistence: {
       endpointUrl: "https://tesla-vercel-api.vercel.app/api/update-negocio-tesla",
       enabled: true,
@@ -703,6 +733,7 @@
   window.TeslaIrASeccion1 = function () {
     var main = document.getElementById('main-form-content');
     if (!main) return;
+
     var ids = ['page-1', 'page-2', 'page-3', 'page-4', 'page-5', 'page-6', 'page-7'];
     for (var i = 0; i < ids.length; i++) {
       var el = document.getElementById(ids[i]);
@@ -711,17 +742,21 @@
         el.style.removeProperty('display');
       }
     }
+
     var page1 = document.getElementById('page-1');
     if (page1) {
       page1.classList.remove('hide');
       page1.style.removeProperty('display');
     }
+
     main.classList.remove('showing-page-7');
+
     var stepper = main.querySelector('.stepper-container');
     if (stepper) {
       stepper.classList.remove('hide');
       stepper.style.removeProperty('display');
     }
+
     window.scrollTo(0, 0);
   };
 </script>
@@ -729,7 +764,7 @@
 <script src="https://js.hsforms.net/forms/embed/44539823.js" defer></script>
 <script src="{{ get_asset_url('/Tesla/js/tesla-rate-policy.js') }}"></script>
 <script src="{{ get_asset_url('/Tesla/js/tesla-pricing-engine.js') }}"></script>
-<script src="{{ get_asset_url('/Tesla/js/tesla-landing.js') }}?v=referido2"></script>
+<script src="{{ get_asset_url('/Tesla/js/tesla-landing.js') }}"></script>
 
 </body>
 </html>
