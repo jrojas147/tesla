@@ -16,7 +16,12 @@
   }
 
   function clone(obj) {
-    return JSON.parse(JSON.stringify(obj));
+    if (obj === null || typeof obj === 'undefined') return null;
+    try {
+      return JSON.parse(JSON.stringify(obj));
+    } catch (e) {
+      return obj;
+    }
   }
 
   function buildSessionId() {
@@ -32,7 +37,10 @@
   }
 
   function fmtMoney(n) {
-    return '$' + new Intl.NumberFormat('es-CO').format(Math.round(Number(n) || 0));
+    return '$' + new Intl.NumberFormat('es-CO', {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0
+    }).format(Math.round(Number(n) || 0));
   }
 
   function scrollTopNow() {
@@ -48,7 +56,88 @@
       .trim();
 
     var parsed = Number(cleaned);
-    return isNaN(parsed) ? null : parsed / 100;
+    return isNaN(parsed) ? null : Number((parsed / 100).toFixed(4));
+  }
+
+  function normalizeRespuestaFinalRaw(value) {
+    return String(value || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ');
+  }
+
+  function normalizeRespuestaFinalFront(value, esReferidoFlag) {
+    var raw = normalizeRespuestaFinalRaw(value);
+
+    if (esReferidoFlag === true || String(esReferidoFlag || '').toLowerCase() === 'true') {
+      return 'PREAPROBADO';
+    }
+
+    if (!raw) return '';
+
+    if (raw.indexOf('REFERIDO') !== -1) return 'PREAPROBADO';
+    if (raw.indexOf('PREAPROBADO') !== -1) return 'PREAPROBADO';
+    if (raw.indexOf('APROBADO') !== -1) return 'APROBADO';
+
+    return raw;
+  }
+
+  function getFrontRespuestaFinal() {
+    var rawRespuesta = String(
+      (RAW && RAW.respuestaFinalTesla) ||
+      (window.TESLA_CONFIG && window.TESLA_CONFIG.respuestaFinalTesla) ||
+      ''
+    ).trim();
+
+    return normalizeRespuestaFinalFront(rawRespuesta, RAW.esReferido);
+  }
+
+  function setCuotaMinimaRequeridaText(value) {
+    if (!DOM.displayCuotaMinimaRequerida) return;
+    var num = Number(value) || 0;
+    if (num > 0) {
+      setText(DOM.displayCuotaMinimaRequerida, fmtMoney(num));
+    } else {
+      setText(DOM.displayCuotaMinimaRequerida, 'No tienes cuota inicial mínima requerida');
+    }
+  }
+
+  function getAceptarFormIdByFlow(normalizedFlow) {
+    var aceptarForms = RAW.forms && RAW.forms.aceptar ? RAW.forms.aceptar : null;
+    if (!aceptarForms) return '';
+
+    if (typeof aceptarForms === 'string') {
+      return String(aceptarForms).trim();
+    }
+
+    if (normalizedFlow === 'preaprobado') {
+      return String(aceptarForms.preaprobado || '').trim();
+    }
+
+    if (normalizedFlow === 'aprobado') {
+      return String(aceptarForms.aprobado || '').trim();
+    }
+
+    return '';
+  }
+
+  function getReevaluarFormIdByFlow(normalizedFlow) {
+    var reevaluarForms = RAW.forms && RAW.forms.reevaluar ? RAW.forms.reevaluar : null;
+    if (!reevaluarForms) return '';
+
+    if (typeof reevaluarForms === 'string') {
+      return String(reevaluarForms).trim();
+    }
+
+    if (normalizedFlow === 'preaprobado') {
+      return String(reevaluarForms.preaprobado || '').trim();
+    }
+
+    if (normalizedFlow === 'aprobado') {
+      return String(reevaluarForms.aprobado || '').trim();
+    }
+
+    return '';
   }
 
   var CONFIG = PricingEngine.buildConfig(RAW);
@@ -72,8 +161,8 @@
       cuotaMaximaPerfil: CONFIG.cuotaMaximaPerfil,
       plazo: CONFIG.plazo,
       valorSeguroTodoRiesgo: CONFIG.valorSeguroTodoRiesgo,
-      tasasRaw: clone(CONFIG.tasasRaw),
-      montoMaximosPorPlazo: clone(CONFIG.montoMaximosPorPlazo),
+      tasasRaw: clone(CONFIG.tasasRaw) || {},
+      montoMaximosPorPlazo: clone(CONFIG.montoMaximosPorPlazo) || {},
       nodo: CONFIG.nodo,
       score: CONFIG.score,
       actividadEconomica: CONFIG.actividadEconomica,
@@ -114,7 +203,7 @@
     },
     errors: [],
     lastPersistenceError: null,
-    debugBoxEnabled: true
+    debugBoxEnabled: !!RAW.debug
   };
 
   window.TESLA_STATE = STATE;
@@ -135,6 +224,11 @@
     DOM.acceptFormConfigError = q('accept-form-config-error');
     DOM.acceptFormErrorDetail = q('accept-form-error-detail');
     DOM.reevaluarFormConfigError = q('reevaluar-form-config-error');
+    DOM.desistirFormConfigError = q('desistir-form-config-error');
+
+    DOM.acceptFormLoading = q('accept-form-loading');
+    DOM.reevaluarFormLoading = q('reevaluar-form-loading');
+    DOM.desistirFormLoading = q('desistir-form-loading');
 
     DOM.inputDoc = q('input-doc');
     DOM.inputRn = q('input-rn');
@@ -167,12 +261,14 @@
 
     DOM.page3Title = q('page-3-title');
     DOM.page3Description = q('page-3-description');
-    DOM.page3FlowBadge = q('page-3-flow-badge');
     DOM.acceptFormContainer = q('accept-form-container');
     DOM.acceptFormFrame = q('accept-form-frame');
 
     DOM.reevaluarFormContainer = q('reevaluar-form-container');
     DOM.reevaluarFormFrame = q('reevaluar-form-frame');
+
+    DOM.desistirFormContainer = q('desistir-form-container');
+    DOM.desistirFormFrame = q('desistir-form-frame');
 
     DOM.blockedFlowTitle = q('blocked-flow-title');
     DOM.blockedFlowDescription = q('blocked-flow-description');
@@ -198,10 +294,6 @@
     DOM.stepLine2 = q('step-line-2');
 
     DOM.debugBox = q('tesla-debug-log');
-    
-    DOM.desistirFormConfigError = q('desistir-form-config-error');
-    DOM.desistirFormContainer = q('desistir-form-container');
-    DOM.desistirFormFrame = q('desistir-form-frame');
   }
 
   var Logger = {
@@ -381,14 +473,6 @@
   }
 
   function mostrarErrorGeneral(message, details) {
-    var msgStr = message ? String(message) : '';
-    var esErrorReconocida = msgStr.indexOf('reconocida') !== -1;
-    if (RAW.mostrarOferta === true && esErrorReconocida) {
-      Logger.warn('Oferta válida (mostrarOferta=true); no se cambia a login.', { message: message });
-      if (DOM.loginError) hide(DOM.loginError);
-      return;
-    }
-
     mostrarPagina(7);
     Logger.configError('mostrarErrorGeneral', {
       message: message,
@@ -397,6 +481,7 @@
   }
 
   function initLoginButton() {
+    loadURL();
     if (!DOM.btnContinue || !DOM.inputDoc || !DOM.inputRn) {
       Logger.warn('initLoginButton: faltan elementos', {
         existeBtn: !!DOM.btnContinue,
@@ -419,22 +504,19 @@
 
   function resolverFlujoPorRespuestaFinal() {
     var configValue = CONFIG.respuestaFinalTesla;
-    var rawValue = configValue != null && configValue !== '' ? configValue : (RAW.respuestaFinalTesla != null && RAW.respuestaFinalTesla !== '' ? RAW.respuestaFinalTesla : '');
+    var rawValue = configValue != null && configValue !== ''
+      ? configValue
+      : (RAW.respuestaFinalTesla != null && RAW.respuestaFinalTesla !== '' ? RAW.respuestaFinalTesla : '');
     var raw = String(rawValue).trim();
-    var normalized = raw.toLowerCase().replace(/\s+/g, ' ').trim();
-    var rawUpper = raw.toUpperCase();
+    var normalizedRaw = normalizeRespuestaFinalRaw(raw);
+    var frontValue = normalizeRespuestaFinalFront(raw, RAW.esReferido);
 
-    Logger.technical('REFERIDO_DEBUG entrada', {
+    Logger.technical('resolverFlujoPorRespuestaFinal.input', {
       CONFIG_respuestaFinalTesla: configValue,
       RAW_respuestaFinalTesla: RAW.respuestaFinalTesla,
       rawUsado: raw,
-      rawLength: raw.length,
-      normalized: normalized,
-      rawUpper: rawUpper,
-      checkReferidoExact: normalized === 'referido',
-      checkReferidIndexOf: normalized.indexOf('referid'),
-      checkRawUpperIndexOf: rawUpper.indexOf('REFERIDO'),
-      versionResolver: 'v2-referido'
+      normalizedRaw: normalizedRaw,
+      frontValue: frontValue
     });
 
     var result = {
@@ -443,59 +525,34 @@
       acceptFormId: '',
       acceptTitle: 'CONTINÚA CON TU SOLICITUD',
       acceptDescription: 'Continúa registrando la información necesaria para obtener tu crédito de vehículo.',
-      flowBadge: '',
       canAccept: false
     };
 
     if (!raw) {
       result.reason = 'RESPUESTA_FINAL_VACIA';
-      Logger.technical('REFERIDO_DEBUG salida', { reason: result.reason, rawVacio: true });
       return result;
     }
 
-    if (normalized === 'referido' || normalized.indexOf('referid') !== -1 || rawUpper.indexOf('REFERIDO') !== -1) {
-      result.normalized = 'referido';
-      result.acceptFormId = (RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.referido) || '';
-      result.acceptTitle = 'FLUJO REFERIDO';
-      result.acceptDescription = 'Tu solicitud ha sido referida. Continúa con la información necesaria para tu crédito de vehículo.';
-      result.flowBadge = 'Flujo referido';
-      result.canAccept = !!result.acceptFormId;
-      result.reason = result.canAccept ? null : 'FORM_REFERIDO_NO_CONFIGURADO';
-      Logger.technical('REFERIDO_DEBUG salida', { matched: 'referido', normalized: result.normalized });
-      return result;
-    }
-
-    if (normalized.indexOf('preaprob') !== -1) {
+    if (frontValue === 'PREAPROBADO') {
       result.normalized = 'preaprobado';
-      result.acceptFormId = (RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.preaprobado) || '';
+      result.acceptFormId = getAceptarFormIdByFlow('preaprobado');
       result.acceptTitle = 'CONTINÚA CON TU PREAPROBACIÓN';
       result.acceptDescription = 'Continúa registrando la información requerida para gestionar tu flujo preaprobado.';
-      result.flowBadge = 'Flujo preaprobado';
       result.canAccept = !!result.acceptFormId;
       result.reason = result.canAccept ? null : 'FORM_PREAPROBADO_NO_CONFIGURADO';
       return result;
-    } else if (normalized.indexOf('aprob') !== -1) {
+    }
+
+    if (frontValue === 'APROBADO') {
       result.normalized = 'aprobado';
-      result.acceptFormId = (RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.aprobado) || '';
+      result.acceptFormId = getAceptarFormIdByFlow('aprobado');
       result.acceptTitle = 'ESTÁS A PUNTO DE OBTENER TU CRÉDITO DE VEHÍCULO';
       result.acceptDescription = 'Continúa registrando la información necesaria para obtener tu crédito de vehículo.';
-      result.flowBadge = 'Flujo aprobado';
       result.canAccept = !!result.acceptFormId;
       result.reason = result.canAccept ? null : 'FORM_APROBADO_NO_CONFIGURADO';
       return result;
     }
 
-    if (rawUpper.indexOf('REFERIDO') !== -1) {
-      result.normalized = 'referido';
-      result.flowBadge = 'Flujo referido';
-      result.acceptTitle = 'FLUJO REFERIDO';
-      result.acceptDescription = 'Tu solicitud ha sido referida. Continúa con la información necesaria para tu crédito de vehículo.';
-      result.reason = null;
-      Logger.technical('REFERIDO_DEBUG salida', { matched: 'referido_fallback', normalized: result.normalized });
-      return result;
-    }
-
-    Logger.technical('REFERIDO_DEBUG salida', { matched: 'ninguno', reason: 'RESPUESTA_FINAL_NO_RECONOCIDA', raw: raw, normalized: normalized });
     result.reason = 'RESPUESTA_FINAL_NO_RECONOCIDA';
     return result;
   }
@@ -527,7 +584,7 @@
           clearInterval(timer);
           reject(new Error('HubSpot Forms no quedó disponible en window.hbspt.'));
         }
-      }, 50);
+      }, 100);
     });
   }
 
@@ -535,34 +592,30 @@
     if (window.hbspt && window.hbspt.forms && typeof window.hbspt.forms.create === 'function') {
       return Promise.resolve();
     }
+
     return new Promise(function (resolve, reject) {
+      var existing = document.querySelector('script[data-tesla-hsforms-loader="true"]');
+      if (existing) {
+        waitForHubspotForms().then(resolve).catch(reject);
+        return;
+      }
+
       var script = document.createElement('script');
       script.charset = 'utf-8';
       script.type = 'text/javascript';
       script.src = 'https://js.hsforms.net/forms/v2.js';
+      script.setAttribute('data-tesla-hsforms-loader', 'true');
+
       script.onload = function () {
-        var attempts = 0;
-        var t = setInterval(function () {
-          attempts++;
-          if (window.hbspt && window.hbspt.forms && typeof window.hbspt.forms.create === 'function') {
-            clearInterval(t);
-            resolve();
-          } else if (attempts >= 40) {
-            clearInterval(t);
-            reject(new Error('HubSpot Forms no disponible tras cargar el script.'));
-          }
-        }, 250);
+        waitForHubspotForms().then(resolve).catch(reject);
       };
+
       script.onerror = function () {
         reject(new Error('No se pudo cargar el script de formularios de HubSpot.'));
       };
+
       document.head.appendChild(script);
     });
-  }
-
-  function frameHasFormContent(targetEl) {
-    if (!targetEl) return false;
-    return targetEl.querySelector('.hs-form') || targetEl.querySelector('iframe') || targetEl.children.length > 0;
   }
 
   function renderHubspotForm(targetEl, formId) {
@@ -587,32 +640,92 @@
           return loadHubspotFormsScriptIfNeeded();
         })
         .then(function () {
+          var mountId = targetEl.id || ('hs-form-frame-' + Math.random().toString(36).slice(2, 8));
+          targetEl.id = mountId;
           targetEl.innerHTML = '';
 
-          var mountId = 'hs-form-mount-' + Math.random().toString(36).slice(2, 10);
-          var mountNode = document.createElement('div');
-          mountNode.id = mountId;
-          targetEl.appendChild(mountNode);
+          var innerMount = document.createElement('div');
+          innerMount.id = mountId + '--mount-' + Date.now();
+          targetEl.appendChild(innerMount);
 
-          window.hbspt.forms.create({
-            region: 'na1',
-            portalId: '44539823',
-            formId: formIdStr,
-            target: '#' + mountId
+          Logger.technical('renderHubspotForm.beforeCreate', {
+            targetId: targetEl.id,
+            innerMountId: innerMount.id,
+            formId: formIdStr
           });
 
-          Logger.functional('renderHubspotForm.create', {
-            formId: formIdStr,
-            targetId: mountId
-          });
+          var settled = false;
+          var fallbackTimer = null;
 
-          resolve();
+          function cleanup() {
+            if (fallbackTimer) {
+              clearInterval(fallbackTimer);
+              fallbackTimer = null;
+            }
+          }
+
+          function finishOk(source) {
+            if (settled) return;
+            settled = true;
+            cleanup();
+
+            Logger.technical('renderHubspotForm.ready', {
+              source: source,
+              targetId: targetEl.id,
+              innerMountId: innerMount.id,
+              childCount: targetEl.children.length,
+              htmlLength: (targetEl.innerHTML || '').length,
+              formId: formIdStr
+            });
+
+            resolve();
+          }
+
+          function finishError(message) {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            reject(new Error(message));
+          }
+
+          try {
+            window.hbspt.forms.create({
+              region: 'na1',
+              portalId: '44539823',
+              formId: formIdStr,
+              target: '#' + innerMount.id,
+              onFormReady: function () {
+                finishOk('onFormReady');
+              }
+            });
+          } catch (e) {
+            finishError(e && e.message ? e.message : 'Falló hbspt.forms.create');
+            return;
+          }
+
+          var fallbackAttempts = 0;
+          var fallbackMaxAttempts = 40;
+
+          fallbackTimer = setInterval(function () {
+            fallbackAttempts += 1;
+
+            var hasIframe = !!innerMount.querySelector('iframe');
+            var hasHsForm = !!innerMount.querySelector('.hs-form');
+            var hasContent = (innerMount.innerHTML || '').replace(/\s/g, '').length > 0;
+
+            if (hasIframe || hasHsForm || hasContent) {
+              finishOk('fallback-dom-detected');
+              return;
+            }
+
+            if (fallbackAttempts >= fallbackMaxAttempts) {
+              finishError('El formulario no quedó visible después de crear el embed.');
+            }
+          }, 100);
         })
-        .catch(function (err) {
-          reject(err);
-        });
+        .catch(reject);
     });
-  }   
+  }
 
   function configurarFormularioAceptacion(flowResult) {
     STATE.flow.respuestaFinalRaw = flowResult.raw;
@@ -620,69 +733,43 @@
     STATE.flow.acceptFormId = flowResult.acceptFormId || null;
     STATE.flow.acceptFormReady = !!flowResult.canAccept;
 
-    // Ajuste mínimo: si el flujo viene como REFERIDO pero no tiene formulario propio configurado,
-    // reusar el formulario de PREAPROBADO únicamente para poder mostrar el formulario,
-    // sin alterar la resolución general del flujo ni otros casos.
-    if (
-      STATE.flow.normalized === 'referido' &&
-      !STATE.flow.acceptFormId &&
-      window.TESLA_CONFIG &&
-      window.TESLA_CONFIG.forms &&
-      window.TESLA_CONFIG.forms.aceptar &&
-      window.TESLA_CONFIG.forms.aceptar.preaprobado
-    ) {
-      STATE.flow.acceptFormId = window.TESLA_CONFIG.forms.aceptar.preaprobado;
-      STATE.flow.acceptFormReady = true;
-      Logger.warn('FORM_REFERIDO_SIN_ID, usando formulario de PREAPROBADO como fallback solo en front', {
-        fallbackFormId: STATE.flow.acceptFormId,
-        normalized: STATE.flow.normalized
-      });
-    }
-
     setText(DOM.page3Title, flowResult.acceptTitle || 'CONTINÚA CON TU SOLICITUD');
     setText(DOM.page3Description, flowResult.acceptDescription || '');
 
-    if (DOM.page3FlowBadge) {
-      if (flowResult.flowBadge) {
-        DOM.page3FlowBadge.textContent = flowResult.flowBadge;
-        show(DOM.page3FlowBadge);
-      } else {
-        hide(DOM.page3FlowBadge);
-      }
-    }
-
     if (!STATE.flow.acceptFormReady || !STATE.flow.acceptFormId) {
       hide(DOM.acceptFormContainer);
+      hide(DOM.acceptFormLoading);
       show(DOM.acceptFormConfigError);
+
       if (DOM.acceptFormErrorDetail) {
-        DOM.acceptFormErrorDetail.textContent =
-          'No hay formId configurado para este flujo. Revisa forms.aceptar en la plantilla.';
+        DOM.acceptFormErrorDetail.textContent = 'No hay formId configurado para este flujo. Revisa forms.aceptar en la plantilla.';
         DOM.acceptFormErrorDetail.classList.remove('hide');
       }
+
       Logger.configError('Flujo sin formulario de aceptación configurado', {
         flowResult: flowResult,
-        acceptFormReady: STATE.flow.acceptFormReady,
-        acceptFormId: STATE.flow.acceptFormId
+        stateFlow: STATE.flow
       });
       return;
-    } 
+    }
 
     hide(DOM.acceptFormConfigError);
+
     if (DOM.acceptFormErrorDetail) {
       DOM.acceptFormErrorDetail.textContent = '';
       DOM.acceptFormErrorDetail.classList.add('hide');
     }
-    show(DOM.acceptFormContainer);
 
     if (DOM.acceptFormFrame) {
-      DOM.acceptFormFrame.setAttribute('data-form-id', flowResult.acceptFormId);
+      DOM.acceptFormFrame.setAttribute('data-form-id', STATE.flow.acceptFormId);
       DOM.acceptFormFrame.setAttribute('data-region', 'na1');
       DOM.acceptFormFrame.setAttribute('data-portal-id', '44539823');
+      DOM.acceptFormFrame.innerHTML = '';
     }
 
     Logger.functional('Formulario dinámico de aceptación configurado', {
-      normalized: flowResult.normalized,
-      formId: flowResult.acceptFormId
+      normalized: STATE.flow.normalized,
+      formId: STATE.flow.acceptFormId
     });
   }
 
@@ -690,103 +777,178 @@
     if (!STATE.flow.acceptFormReady || !STATE.flow.acceptFormId) {
       show(DOM.acceptFormConfigError);
       hide(DOM.acceptFormContainer);
+      hide(DOM.acceptFormLoading);
+
       if (DOM.acceptFormErrorDetail) {
         DOM.acceptFormErrorDetail.textContent = 'FormId: ' + (STATE.flow.acceptFormId || '(vacío)') + '. Portal: 44539823. Comprueba que el formulario existe en HubSpot.';
         DOM.acceptFormErrorDetail.classList.remove('hide');
       }
+
       Logger.configError('No se puede renderizar formulario de aceptación', {
         acceptFormReady: STATE.flow.acceptFormReady,
         acceptFormId: STATE.flow.acceptFormId
       });
+
       return Promise.reject(new Error('Formulario de aceptación no configurado.'));
     }
 
-    show(DOM.acceptFormContainer);
     hide(DOM.acceptFormConfigError);
+    hide(DOM.acceptFormContainer);
+    show(DOM.acceptFormLoading);
+
     if (DOM.acceptFormErrorDetail) {
       DOM.acceptFormErrorDetail.textContent = '';
       DOM.acceptFormErrorDetail.classList.add('hide');
     }
 
-    var formIdStr = String(STATE.flow.acceptFormId);
-    return renderHubspotForm(DOM.acceptFormFrame, formIdStr)
+    if (DOM.acceptFormFrame) {
+      DOM.acceptFormFrame.innerHTML = '';
+    }
+
+    return renderHubspotForm(DOM.acceptFormFrame, String(STATE.flow.acceptFormId))
       .then(function () {
+        hide(DOM.acceptFormLoading);
+        show(DOM.acceptFormContainer);
+
         Logger.functional('Formulario de aceptación renderizado', {
           formId: STATE.flow.acceptFormId,
           normalized: STATE.flow.normalized
         });
       })
       .catch(function (err) {
+        hide(DOM.acceptFormLoading);
         hide(DOM.acceptFormContainer);
         show(DOM.acceptFormConfigError);
+
         if (DOM.acceptFormErrorDetail) {
           DOM.acceptFormErrorDetail.textContent = 'FormId: ' + (STATE.flow.acceptFormId || '') + '. Portal: 44539823. ' + (err && err.message ? err.message : '');
           DOM.acceptFormErrorDetail.classList.remove('hide');
         }
+
         Logger.configError('Error renderizando formulario de aceptación', {
           formId: STATE.flow.acceptFormId,
           error: err && err.message ? err.message : String(err)
         });
+
         throw err;
       });
   }
 
   function ensureReevaluarFormRendered() {
-    var normalized = STATE.flow.normalized || '';
+    var reevaluarFormId = getReevaluarFormIdByFlow(STATE.flow.normalized);
 
-    // Selección del formulario según flujo
-    var reevaluarFormId = '';
-    if (normalized === 'aprobado') {
-      reevaluarFormId = (RAW.forms && RAW.forms.reevaluarAprobado) ? RAW.forms.reevaluarAprobado : '';
-    } else if (normalized === 'preaprobado' || normalized === 'referido') {
-      reevaluarFormId = (RAW.forms && RAW.forms.reevaluarPreaprobado) ? RAW.forms.reevaluarPreaprobado : '';
-    }
-
-    // Fallback al form genérico si no hay uno específico
-    if (!reevaluarFormId) {
-      reevaluarFormId = (RAW.forms && RAW.forms.reevaluar) ? RAW.forms.reevaluar : '';
-      Logger.warn('Usando formulario de reevaluación genérico como fallback', {
-        normalized: normalized,
-        fallbackFormId: reevaluarFormId
-      });
-    }
+    Logger.technical('ensureReevaluarFormRendered.input', {
+      normalized: STATE.flow.normalized,
+      respuestaFinalRaw: STATE.flow.respuestaFinalRaw,
+      respuestaFinalFront: getFrontRespuestaFinal(),
+      reevaluarFormId: reevaluarFormId,
+      reevaluarConfig: RAW.forms && RAW.forms.reevaluar ? RAW.forms.reevaluar : null
+    });
 
     if (!reevaluarFormId) {
-      if (DOM.reevaluarFormConfigError) show(DOM.reevaluarFormConfigError);
-      if (DOM.reevaluarFormContainer) hide(DOM.reevaluarFormContainer);
-      Logger.configError('No existe formulario de reevaluación configurado', {
-        normalized: normalized
+      hide(DOM.reevaluarFormLoading);
+      show(DOM.reevaluarFormConfigError);
+      hide(DOM.reevaluarFormContainer);
+
+      Logger.configError('No existe formulario de reevaluación configurado para el flujo actual', {
+        normalized: STATE.flow.normalized,
+        respuestaFinalRaw: STATE.flow.respuestaFinalRaw,
+        respuestaFinalFront: getFrontRespuestaFinal(),
+        reevaluarConfig: RAW.forms && RAW.forms.reevaluar ? RAW.forms.reevaluar : null
       });
-      return Promise.reject(new Error('Formulario de reevaluación no configurado.'));
+
+      return Promise.reject(new Error('Formulario de reevaluación no configurado para el flujo actual.'));
     }
 
     if (!DOM.reevaluarFormFrame) {
+      hide(DOM.reevaluarFormLoading);
       Logger.configError('No existe contenedor para formulario de reevaluación', null);
       return Promise.reject(new Error('Contenedor de reevaluación no disponible.'));
     }
 
-    if (DOM.reevaluarFormContainer) show(DOM.reevaluarFormContainer);
-    if (DOM.reevaluarFormConfigError) hide(DOM.reevaluarFormConfigError);
+    hide(DOM.reevaluarFormConfigError);
+    hide(DOM.reevaluarFormContainer);
+    show(DOM.reevaluarFormLoading);
 
     DOM.reevaluarFormFrame.setAttribute('data-form-id', reevaluarFormId);
     DOM.reevaluarFormFrame.setAttribute('data-region', 'na1');
     DOM.reevaluarFormFrame.setAttribute('data-portal-id', '44539823');
+    DOM.reevaluarFormFrame.innerHTML = '';
 
     return renderHubspotForm(DOM.reevaluarFormFrame, reevaluarFormId)
       .then(function () {
+        hide(DOM.reevaluarFormLoading);
+        show(DOM.reevaluarFormContainer);
+
         Logger.functional('Formulario de reevaluación renderizado', {
-          formId: reevaluarFormId,
-          normalized: normalized
+          normalized: STATE.flow.normalized,
+          respuestaFinalRaw: STATE.flow.respuestaFinalRaw,
+          respuestaFinalFront: getFrontRespuestaFinal(),
+          formId: reevaluarFormId
         });
       })
       .catch(function (err) {
-        if (DOM.reevaluarFormContainer) hide(DOM.reevaluarFormContainer);
-        if (DOM.reevaluarFormConfigError) show(DOM.reevaluarFormConfigError);
+        hide(DOM.reevaluarFormLoading);
+        hide(DOM.reevaluarFormContainer);
+        show(DOM.reevaluarFormConfigError);
+
         Logger.configError('Error renderizando formulario de reevaluación', {
+          normalized: STATE.flow.normalized,
+          respuestaFinalRaw: STATE.flow.respuestaFinalRaw,
+          respuestaFinalFront: getFrontRespuestaFinal(),
           formId: reevaluarFormId,
-          normalized: normalized,
           error: err && err.message ? err.message : String(err)
         });
+
+        throw err;
+      });
+  }
+
+  function ensureDesistirFormRendered() {
+    var desistirFormId = RAW.forms && RAW.forms.desistir ? RAW.forms.desistir : '';
+
+    if (!desistirFormId) {
+      hide(DOM.desistirFormLoading);
+      show(DOM.desistirFormConfigError);
+      hide(DOM.desistirFormContainer);
+      Logger.configError('No existe formulario de desistimiento configurado', null);
+      return Promise.reject(new Error('Formulario de desistimiento no configurado.'));
+    }
+
+    if (!DOM.desistirFormFrame) {
+      hide(DOM.desistirFormLoading);
+      Logger.configError('No existe contenedor para formulario de desistimiento', null);
+      return Promise.reject(new Error('Contenedor de desistimiento no disponible.'));
+    }
+
+    hide(DOM.desistirFormConfigError);
+    hide(DOM.desistirFormContainer);
+    show(DOM.desistirFormLoading);
+
+    DOM.desistirFormFrame.setAttribute('data-form-id', desistirFormId);
+    DOM.desistirFormFrame.setAttribute('data-region', 'na1');
+    DOM.desistirFormFrame.setAttribute('data-portal-id', '44539823');
+    DOM.desistirFormFrame.innerHTML = '';
+
+    return renderHubspotForm(DOM.desistirFormFrame, desistirFormId)
+      .then(function () {
+        hide(DOM.desistirFormLoading);
+        show(DOM.desistirFormContainer);
+
+        Logger.functional('Formulario de desistimiento renderizado', {
+          formId: desistirFormId
+        });
+      })
+      .catch(function (err) {
+        hide(DOM.desistirFormLoading);
+        hide(DOM.desistirFormContainer);
+        show(DOM.desistirFormConfigError);
+
+        Logger.configError('Error renderizando formulario de desistimiento', {
+          formId: desistirFormId,
+          error: err && err.message ? err.message : String(err)
+        });
+
         throw err;
       });
   }
@@ -830,10 +992,7 @@
       'Ya registramos una gestión previa sobre esta solicitud. No necesitas volver a diligenciar el flujo en este momento.'
     );
     setText(DOM.blockedFlowStatus, STATE.flow.blockedStatus || 'En proceso');
-    setText(
-      DOM.blockedFlowReason,
-      STATE.flow.blockedReason || 'Flujo ya gestionado previamente'
-    );
+    setText(DOM.blockedFlowReason, STATE.flow.blockedReason || 'Flujo ya gestionado previamente');
 
     Logger.functional('Pantalla de flujo bloqueado renderizada', {
       blocked: STATE.flow.blocked,
@@ -857,7 +1016,7 @@
     if (!DOM.inputPlazo) return;
 
     var plazosDisponibles = PricingEngine.getPlazosDisponibles(CONFIG);
-    STATE.simulator.plazosDisponibles = clone(plazosDisponibles);
+    STATE.simulator.plazosDisponibles = clone(plazosDisponibles) || [];
 
     DOM.inputPlazo.innerHTML = '';
 
@@ -921,7 +1080,7 @@
 
     setText(DOM.labelMin, fmtMoney(reglas.cuotaMinimaFinal));
     setText(DOM.labelMax, fmtMoney(reglas.cuotaMaximaFinal));
-    setText(DOM.displayCuotaMinimaRequerida, fmtMoney(reglas.cuotaMinimaFinal));
+    setCuotaMinimaRequeridaText(reglas.cuotaMinimaFinal);
     setText(DOM.valRangeLabel, fmtMoney(currentValue));
   }
 
@@ -977,7 +1136,6 @@
     STATE.simulator.calculation = clone(calculation);
     STATE.simulator.snapshotOferta = buildSnapshotOferta(calculation);
     STATE.simulator.lastUpdatedAt = new Date().toISOString();
-
     window.TESLA_STATE = STATE;
   }
 
@@ -1040,7 +1198,7 @@
     hide(DOM.modalErrorBox);
 
     var calc = STATE.simulator.calculation;
-    setText(DOM.modalRespuestaFinal, CONFIG.respuestaFinalTesla || '—');
+    setText(DOM.modalRespuestaFinal, getFrontRespuestaFinal() || '—');
     setText(DOM.modalPlazo, String(calc.plazo) + ' meses');
     setText(DOM.modalCuotaInicial, fmtMoney(calc.cuotaInicial));
     setText(DOM.modalTasa, calc.tasaMostrada);
@@ -1060,7 +1218,7 @@
     STATE.ui.modalOpen = false;
   }
 
-  function buildDecisionPayload(decisionType) {
+  function buildDecisionPayload(decisionType) { 
     if (!STATE.simulator.calculation) {
       Logger.calcError('No existe cálculo para construir payload', {
         decisionType: decisionType
@@ -1103,6 +1261,7 @@
       decision_cliente: decisionCliente,
       acepta_seguro_todo_riesgo: !!calc.seguros.autoSeleccionado,
       acepta_seguro_desempleo: !!calc.seguros.desempleoSeleccionado,
+
       decision_cliente_tesla: decisionClienteTesla,
       plazo_seleccionado_tesla: calc.plazo,
       cuota_inicial_seleccionada_tesla: calc.cuotaInicial,
@@ -1120,7 +1279,9 @@
       tasa_raw_tesla: calc.tasaRaw,
       tasa_normalizada_tesla: calc.tasaNormalizada,
       tasa_mostrada_tesla: calc.tasaMostrada,
-      
+
+      seguro_auto_seleccionado_tesla: calc.seguros.autoSeleccionado,
+      seguro_desempleo_seleccionado_tesla: calc.seguros.desempleoSeleccionado,
       valor_seguro_vida_tesla: calc.seguros.valorSeguroVida,
       valor_seguro_auto_tesla: calc.seguros.valorSeguroAuto,
       valor_seguro_desempleo_tesla: calc.seguros.valorSeguroDesempleo,
@@ -1143,7 +1304,7 @@
       },
       cliente_id_tesla: CONFIG.clienteId || RAW.clienteId || '',
       negocio_id_tesla: recordId,
-      respuesta_final_tesla: CONFIG.respuestaFinalTesla || RAW.respuestaFinalTesla || ''
+      respuesta_final_tesla: getFrontRespuestaFinal() || CONFIG.respuestaFinalTesla || RAW.respuestaFinalTesla || ''
     };
 
     Logger.technical('buildDecisionPayload.result', payload);
@@ -1154,10 +1315,7 @@
     persistDecision: function (payload) {
       return new Promise(function (resolve, reject) {
         var persistenceConfig = RAW.persistence || {};
-        var enabled =
-          typeof persistenceConfig.enabled === 'boolean'
-            ? persistenceConfig.enabled
-            : true;
+        var enabled = typeof persistenceConfig.enabled === 'boolean' ? persistenceConfig.enabled : true;
         var endpointUrl = persistenceConfig.endpointUrl || DEFAULT_PERSISTENCE_ENDPOINT;
         var timeoutMs = Number(persistenceConfig.timeoutMs) || 12000;
 
@@ -1171,26 +1329,7 @@
         if (!enabled || !endpointUrl) {
           reject({
             code: 'PERSISTENCE_NOT_CONFIGURED',
-            message: 'No existe endpoint de persistencia configurado.',
-            contract: {
-              method: 'POST',
-              endpoint: DEFAULT_PERSISTENCE_ENDPOINT,
-              contentType: 'application/json',
-              expectedBody: {
-                recordId: 'string',
-                cuota_inicial_seleccionada: 'string|number',
-                tasa_selecionada: 'number',
-                decision_cliente: 'string',
-                acepta_seguro_todo_riesgo: 'boolean',
-                acepta_seguro_desempleo: 'boolean',
-                plazo_seleccionado_tesla: 'number',
-                cuota_inicial_seleccionada_tesla: 'number',
-                porcentaje_cuota_inicial_tesla: 'number',
-                capital_financiado_tesla: 'number',
-                cuota_base_tesla: 'number',
-                cuota_total_tesla: 'number'
-              }
-            }
+            message: 'No existe endpoint de persistencia configurado.'
           });
           return;
         }
@@ -1199,8 +1338,6 @@
         var timer = setTimeout(function () {
           controller.abort();
         }, timeoutMs);
-
-        Logger.technical('persistDecision.payload.final', payload);
 
         fetch(endpointUrl, {
           method: 'POST',
@@ -1289,7 +1426,10 @@
       Logger.configError('No se puede continuar aceptación: formulario no disponible', {
         flow: STATE.flow
       });
+
       show(DOM.acceptFormConfigError);
+      hide(DOM.acceptFormLoading);
+
       if (DOM.acceptFormErrorDetail) {
         DOM.acceptFormErrorDetail.textContent = 'FormId: ' + (STATE.flow.acceptFormId || '(vacío)') + '. Portal: 44539823.';
         DOM.acceptFormErrorDetail.classList.remove('hide');
@@ -1369,6 +1509,13 @@
       Logger.calcError('No fue posible construir payload de re-evaluación', null);
       return;
     }
+
+    Logger.technical('handleReevaluarClick.flow', {
+      normalized: STATE.flow.normalized,
+      respuestaFinalRaw: STATE.flow.respuestaFinalRaw,
+      respuestaFinalFront: getFrontRespuestaFinal(),
+      reevaluarForms: RAW.forms && RAW.forms.reevaluar ? RAW.forms.reevaluar : null
+    });
 
     STATE.ui.reevaluarBusy = true;
     STATE.decision.type = 'reevaluar';
@@ -1475,8 +1622,10 @@
     if (DOM.btnRechazar) {
       DOM.btnRechazar.addEventListener('click', handleRechazarClick);
     }
+
     if (DOM.btnVolverInicio) {
       DOM.btnVolverInicio.addEventListener('click', function () {
+        loadURL();
         mostrarPagina(1);
       });
     }
@@ -1511,43 +1660,33 @@
       return false;
     }
 
-    var esReferidoPorConfig = RAW.esReferido === true || (typeof RAW.esReferido === 'string' && RAW.esReferido.toLowerCase() === 'true');
     var respuestaRaw = String(CONFIG.respuestaFinalTesla || RAW.respuestaFinalTesla || '').trim();
-    var esReferidoPorTexto = respuestaRaw.toUpperCase().indexOf('REFERIDO') !== -1;
-    var esReferido = esReferidoPorConfig || esReferidoPorTexto;
+    var respuestaFront = normalizeRespuestaFinalFront(respuestaRaw, RAW.esReferido);
 
-    var flowResult;
-    if (esReferido) {
-      flowResult = {
-        raw: respuestaRaw,
-        normalized: 'referido',
-        acceptFormId: (RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.referido) || '',
-        acceptTitle: 'FLUJO REFERIDO',
-        acceptDescription: 'Tu solicitud ha sido referida. Continúa con la información necesaria para tu crédito de vehículo.',
-        flowBadge: 'Flujo referido',
-        canAccept: !!(RAW.forms && RAW.forms.aceptar && RAW.forms.aceptar.referido)
-      };
-      Logger.technical('REFERIDO detectado al inicio', flowResult);
-    } else {
-      flowResult = resolverFlujoPorRespuestaFinal();
+    Logger.technical('Normalización respuesta final front', {
+      respuestaRaw: respuestaRaw,
+      respuestaFront: respuestaFront,
+      esReferido: RAW.esReferido
+    });
+
+    var flowResult = resolverFlujoPorRespuestaFinal();
     Logger.technical('resolverFlujoPorRespuestaFinal', flowResult);
+
     if (flowResult.normalized === 'desconocido') {
-        var rawDesconocido = String(flowResult.raw || respuestaRaw || '').trim();
-        var esReferidoDesconocido = rawDesconocido.toUpperCase().indexOf('REFERIDO') !== -1;
-        flowResult = {
-          raw: rawDesconocido,
-          normalized: esReferidoDesconocido ? 'referido' : 'otro',
-          acceptFormId: '',
-          acceptTitle: esReferidoDesconocido ? 'FLUJO REFERIDO' : 'CONTINÚA CON TU SOLICITUD',
-          acceptDescription: esReferidoDesconocido ? 'Tu solicitud ha sido referida. Continúa con la información necesaria para tu crédito de vehículo.' : 'Continúa registrando la información necesaria para obtener tu crédito de vehículo.',
-          flowBadge: esReferidoDesconocido ? 'Flujo referido' : (rawDesconocido || 'Otro'),
-          canAccept: false
-        };
-        Logger.technical('Flujo desconocido tratado como oferta', flowResult);
-      }
+      Logger.warn('Flujo desconocido detectado', flowResult);
+      mostrarErrorGeneral(
+        'La respuesta final de la oferta no es reconocida por el flujo.',
+        flowResult
+      );
+      return false;
     }
 
     configurarFormularioAceptacion(flowResult);
+
+    if (DOM.step2RespuestaFinal) {
+      setText(DOM.step2RespuestaFinal, respuestaFront || '—');
+    }
+
     return true;
   }
 
@@ -1580,9 +1719,9 @@
       return;
     }
     initAlreadyRun = true;
-
     captureDom();
     clearDebugBox();
+    loadURL();
 
     var config = window.TESLA_CONFIG || {};
     Logger.technical('INIT RAW', config);
@@ -1604,7 +1743,6 @@
     } catch (e) {
       Logger.warn('No se pudo evaluar decisionCliente en init', { error: String(e && e.message ? e.message : e) });
     }
-
     if (config.mostrarError === true) {
       mostrarPagina(7);
       if (DOM.mainFormContent) DOM.mainFormContent.classList.add('showing-page-7');
@@ -1614,16 +1752,23 @@
       hide(DOM.loginError);
     }
 
+    if (DOM.step2RespuestaFinal) {
+      setText(DOM.step2RespuestaFinal, getFrontRespuestaFinal() || '—');
+    }
+
+    setCuotaMinimaRequeridaText(CONFIG.cuotaInicialMinimaPerfil);
+
     initLoginButton();
     bindBotones();
 
     if (!config.mostrarOferta) {
       Logger.warn('mostrarOferta=false, no se inicializa la calculadora', null);
+
       if (config.mostrarError === true) {
         mostrarPagina(7);
         if (DOM.mainFormContent) DOM.mainFormContent.classList.add('showing-page-7');
       } else {
-      mostrarPagina(1);
+        mostrarPagina(1);
       }
       return;
     }
@@ -1636,56 +1781,29 @@
     }
 
     initCalculadora();
+
     if (DOM.loginError) hide(DOM.loginError);
     mostrarPagina(2);
   }
 
+  function loadURL(){
+    const navEntries = performance.getEntriesByType("navigation");
+
+    if (navEntries.length > 0 && navEntries[0].type === "reload") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("t", Date.now());
+      window.location.replace(url.toString());
+    }
+  }
+
   function runInitWhenReady() {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
       setTimeout(init, 0);
-  }
-  }
-  function ensureDesistirFormRendered() {
-    var desistirFormId = RAW.forms && RAW.forms.desistir ? RAW.forms.desistir : '';
-
-    if (!desistirFormId) {
-      if (DOM.desistirFormConfigError) show(DOM.desistirFormConfigError);
-      if (DOM.desistirFormContainer) hide(DOM.desistirFormContainer);
-      Logger.configError('No existe formulario de desistimiento configurado', null);
-      return Promise.reject(new Error('Formulario de desistimiento no configurado.'));
     }
-
-    if (!DOM.desistirFormFrame) {
-      Logger.configError('No existe contenedor para formulario de desistimiento', null);
-      return Promise.reject(new Error('Contenedor de desistimiento no disponible.'));
-    }
-
-    if (DOM.desistirFormContainer) show(DOM.desistirFormContainer);
-    if (DOM.desistirFormConfigError) hide(DOM.desistirFormConfigError);
-
-    DOM.desistirFormFrame.setAttribute('data-form-id', desistirFormId);
-    DOM.desistirFormFrame.setAttribute('data-region', 'na1');
-    DOM.desistirFormFrame.setAttribute('data-portal-id', '44539823');
-
-    return renderHubspotForm(DOM.desistirFormFrame, desistirFormId)
-      .then(function () {
-        Logger.functional('Formulario de desistimiento renderizado', {
-          formId: desistirFormId
-        });
-      })
-      .catch(function (err) {
-        if (DOM.desistirFormContainer) hide(DOM.desistirFormContainer);
-        if (DOM.desistirFormConfigError) show(DOM.desistirFormConfigError);
-
-        Logger.configError('Error renderizando formulario de desistimiento', {
-          formId: desistirFormId,
-          error: err && err.message ? err.message : String(err)
-        });
-        throw err;
-      });
   }
+
   runInitWhenReady();
 
   window.TeslaVolverInicio = function () {
