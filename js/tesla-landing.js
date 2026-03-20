@@ -481,6 +481,7 @@
   }
 
   function initLoginButton() {
+    loadURL();
     if (!DOM.btnContinue || !DOM.inputDoc || !DOM.inputRn) {
       Logger.warn('initLoginButton: faltan elementos', {
         existeBtn: !!DOM.btnContinue,
@@ -1716,19 +1717,10 @@
       Logger.warn('init ya ejecutado, se omite segunda llamada', null);
       return;
     }
-
     initAlreadyRun = true;
-
     captureDom();
     clearDebugBox();
-
-    const navEntries = performance.getEntriesByType("navigation");
-
-    if (navEntries.length > 0 && navEntries[0].type === "reload") {
-      const url = new URL(window.location.href);
-      url.searchParams.set("t", Date.now());
-      window.location.replace(url.toString());
-    }
+    loadURL();
 
     var config = window.TESLA_CONFIG || {};
     Logger.technical('INIT RAW', config);
@@ -1791,6 +1783,16 @@
 
     if (DOM.loginError) hide(DOM.loginError);
     mostrarPagina(2);
+  }
+
+  function loadURL(){
+    const navEntries = performance.getEntriesByType("navigation");
+
+    if (navEntries.length > 0 && navEntries[0].type === "reload") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("t", Date.now());
+      window.location.replace(url.toString());
+    }
   }
 
   function runInitWhenReady() {
