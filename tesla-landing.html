@@ -569,9 +569,9 @@
         <h3>RE-EVALUAR CUOTA INICIAL CRÉDITO</h3>
       </div>
 
-      <p class="page3-description">
+      <!--<p class="page3-description">
         Completa el formulario para solicitar la re-evaluación de tu cuota inicial.
-      </p>
+      </p>-->
 
       <div id="reevaluar-form-config-error" class="page-alert page-alert--error hide">
         El formulario de re-evaluación no se pudo cargar.
@@ -668,13 +668,14 @@
     </section>
 
     <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
-Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
-cliente_encontrado={{ cliente_encontrado }} | negocio_encontrado={{ negocio_encontrado }}
-respuesta_final_tesla_raw={{ respuesta_final_tesla }}
-respuesta_final_front={{ respuesta_final_front }}
-negocio_id={{ negocio.id if negocio_encontrado else "" }}
-cliente_id={{ cliente.id if cliente_encontrado else "" }}
-</pre>
+        Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
+        cliente_encontrado={{ cliente_encontrado }} | negocio_encontrado={{ negocio_encontrado }}
+        respuesta_final_tesla_raw={{ respuesta_final_tesla }}
+        respuesta_final_front={{ respuesta_final_front }}
+        negocio_id={{ negocio.id if negocio_encontrado else "" }}
+        cliente_id={{ cliente.id if cliente_encontrado else "" }}
+        decision_cliente****={{ negocio.decision_cliente if negocio_encontrado else "" }}
+    </pre>
   </main>
 </section>
 
