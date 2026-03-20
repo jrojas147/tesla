@@ -1,676 +1,500 @@
 (function (window) {
   'use strict';
 
-  var ENGINE_VERSION = '1.2.2';
-  var MONTO_FINANCIADO_MINIMO = 15000000;
-  var MESES_SEGURO_AUTO = 12;
-  var TASA_SEGURO_DESEMPLEO = 0.055811;
-  var TARIFA_SEGURO_VIDA_POR_MILLON = 1220;
-  var PLAZOS_SOPORTADOS = [24, 36, 48, 60, 72, 84];
+  var VERSION = '1.1.0';
 
-  function toNum(value, fallback) {
-    var n = Number(value);
-    return Number.isFinite(n) ? n : (typeof fallback === 'number' ? fallback : 0);
-  }
+  var CONFIG = {
+    commercialDiscountLifeNMV: 0.0005,
+    commercialDiscountEvNMV: 0.0003,
+    unemploymentInsuranceDiscountNMV: 0.0003,
+    allRiskInsuranceDiscountNMV: 0.0002,
+    fixedHighScoreNMV: 0.0124,
+    highScoreThreshold: 950,
+    fundingScoreThreshold: 800,
 
-  function trunc2(n) {
+    allowedTerms: [24, 36, 48, 60, 72],
+
+    minFinancedAmount: 15000000,
+
+    fundingCostByTerm: {
+      24: 0.0106,
+      36: 0.0107,
+      48: 0.0108,
+      60: 0.0108,
+      72: 0.0108
+    },
+
+    fundingCostByTermLowScore: {
+      24: 0.0099,
+      36: 0.0101,
+      48: 0.0101,
+      60: 0.0101,
+      72: 0.0101
+    },
+
+    profitabilityByNode: {
+      1: 0.0017,
+      2: 0.0030,
+      3: 0.0035,
+      4: 0.0038,
+      5: 0.0038,
+      6: 0.0040,
+      7: 0.0040,
+      8: 0.0040,
+      9: 0.0048,
+      10: 0.0048,
+      11: 0.0048,
+      12: 0.0048,
+      13: 0.0048
+    },
+
+    ceilingAdjustmentByNode: {
+      1: 0.0025,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+      6: 0,
+      7: 0,
+      8: 0,
+      9: 0,
+      10: 0,
+      11: 0,
+      12: 0,
+      13: 0
+    },
+
+    feeDealerNMV: 0,
+    operatingCostAnnual: 0.007,
+    icaAnnual: 0.005,
+    independentActivityAnnual: 0.012,
+    riskInitialAnnual: 0.01,
+    usuryAnnual: 0.2295,
+    usuryAnnualLowScore: 0.2271,
+    floorMonthlyNMV: 0.0123
+  };
+
+  var SCORE_BUCKETS = [
+    { label: '0 - 501', min: 0, max: 501 },
+    { label: '502 - 573', min: 502, max: 573 },
+    { label: '574 - 607', min: 574, max: 607 },
+    { label: '608 - 671', min: 608, max: 671 },
+    { label: '672 - 735', min: 672, max: 735 },
+    { label: '736 - 799', min: 736, max: 799 },
+    { label: '800 - 904', min: 800, max: 904 },
+    { label: '905 - 949', min: 905, max: 949 },
+    { label: '950 - 959', min: 950, max: 959 },
+    { label: '960 - 969', min: 960, max: 969 },
+    { label: '970 - 979', min: 970, max: 979 },
+    { label: '980 - 1000', min: 980, max: 1000 }
+  ];
+
+  var PRODUCTIVE_PM_MATRIX = [
+    { bucketCuota: '0 a 10%', bucketScore: '0 - 501', Empleado: 0.7621, Independiente: 0.7621 },
+    { bucketCuota: '0 a 10%', bucketScore: '502 - 573', Empleado: 0.7621, Independiente: 0.7621 },
+    { bucketCuota: '0 a 10%', bucketScore: '574 - 607', Empleado: 0.7621, Independiente: 0.7621 },
+    { bucketCuota: '0 a 10%', bucketScore: '608 - 671', Empleado: 0.7621, Independiente: 0.7621 },
+    { bucketCuota: '0 a 10%', bucketScore: '672 - 735', Empleado: 0.6214, Independiente: 0.6214 },
+    { bucketCuota: '0 a 10%', bucketScore: '736 - 799', Empleado: 0.4957, Independiente: 0.4957 },
+    { bucketCuota: '0 a 10%', bucketScore: '800 - 904', Empleado: 0.3132, Independiente: 0.3132 },
+    { bucketCuota: '0 a 10%', bucketScore: '905 - 949', Empleado: 0.1969, Independiente: 0.2068 },
+    { bucketCuota: '0 a 10%', bucketScore: '950 - 959', Empleado: 0.1652, Independiente: 0.1693 },
+    { bucketCuota: '0 a 10%', bucketScore: '960 - 969', Empleado: 0.1539, Independiente: 0.1585 },
+    { bucketCuota: '0 a 10%', bucketScore: '970 - 979', Empleado: 0.1242, Independiente: 0.1242 },
+    { bucketCuota: '0 a 10%', bucketScore: '980 - 1000', Empleado: 0.1242, Independiente: 0.1242 },
+
+    { bucketCuota: '11% a 20%', bucketScore: '0 - 501', Empleado: 0.7409, Independiente: 0.7409 },
+    { bucketCuota: '11% a 20%', bucketScore: '502 - 573', Empleado: 0.7409, Independiente: 0.7409 },
+    { bucketCuota: '11% a 20%', bucketScore: '574 - 607', Empleado: 0.7409, Independiente: 0.7409 },
+    { bucketCuota: '11% a 20%', bucketScore: '608 - 671', Empleado: 0.7409, Independiente: 0.7409 },
+    { bucketCuota: '11% a 20%', bucketScore: '672 - 735', Empleado: 0.5667, Independiente: 0.5750 },
+    { bucketCuota: '11% a 20%', bucketScore: '736 - 799', Empleado: 0.4562, Independiente: 0.4562 },
+    { bucketCuota: '11% a 20%', bucketScore: '800 - 904', Empleado: 0.2462, Independiente: 0.2643 },
+    { bucketCuota: '11% a 20%', bucketScore: '905 - 949', Empleado: 0.1413, Independiente: 0.1724 },
+    { bucketCuota: '11% a 20%', bucketScore: '950 - 959', Empleado: 0.1256, Independiente: 0.1264 },
+    { bucketCuota: '11% a 20%', bucketScore: '960 - 969', Empleado: 0.1145, Independiente: 0.1145 },
+    { bucketCuota: '11% a 20%', bucketScore: '970 - 979', Empleado: 0.0746, Independiente: 0.0867 },
+    { bucketCuota: '11% a 20%', bucketScore: '980 - 1000', Empleado: 0.0746, Independiente: 0.0867 },
+
+    { bucketCuota: '21% a 30%', bucketScore: '0 - 501', Empleado: 0.7402, Independiente: 0.7402 },
+    { bucketCuota: '21% a 30%', bucketScore: '502 - 573', Empleado: 0.7402, Independiente: 0.7402 },
+    { bucketCuota: '21% a 30%', bucketScore: '574 - 607', Empleado: 0.7402, Independiente: 0.7402 },
+    { bucketCuota: '21% a 30%', bucketScore: '608 - 671', Empleado: 0.6649, Independiente: 0.6658 },
+    { bucketCuota: '21% a 30%', bucketScore: '672 - 735', Empleado: 0.5303, Independiente: 0.5303 },
+    { bucketCuota: '21% a 30%', bucketScore: '736 - 799', Empleado: 0.3896, Independiente: 0.3923 },
+    { bucketCuota: '21% a 30%', bucketScore: '800 - 904', Empleado: 0.1969, Independiente: 0.2273 },
+    { bucketCuota: '21% a 30%', bucketScore: '905 - 949', Empleado: 0.1159, Independiente: 0.1175 },
+    { bucketCuota: '21% a 30%', bucketScore: '950 - 959', Empleado: 0.0968, Independiente: 0.1031 },
+    { bucketCuota: '21% a 30%', bucketScore: '960 - 969', Empleado: 0.0908, Independiente: 0.0908 },
+    { bucketCuota: '21% a 30%', bucketScore: '970 - 979', Empleado: 0.0693, Independiente: 0.0871 },
+    { bucketCuota: '21% a 30%', bucketScore: '980 - 1000', Empleado: 0.0627, Independiente: 0.0627 },
+
+    { bucketCuota: '41% a 50%', bucketScore: '0 - 501', Empleado: 0.7238, Independiente: 0.7718 },
+    { bucketCuota: '41% a 50%', bucketScore: '502 - 573', Empleado: 0.7238, Independiente: 0.7718 },
+    { bucketCuota: '41% a 50%', bucketScore: '574 - 607', Empleado: 0.7589, Independiente: 0.7589 },
+    { bucketCuota: '41% a 50%', bucketScore: '608 - 671', Empleado: 0.6198, Independiente: 0.6198 },
+    { bucketCuota: '41% a 50%', bucketScore: '672 - 735', Empleado: 0.4604, Independiente: 0.4663 },
+    { bucketCuota: '41% a 50%', bucketScore: '736 - 799', Empleado: 0.3210, Independiente: 0.3346 },
+    { bucketCuota: '41% a 50%', bucketScore: '800 - 904', Empleado: 0.1566, Independiente: 0.1749 },
+    { bucketCuota: '41% a 50%', bucketScore: '905 - 949', Empleado: 0.0925, Independiente: 0.0966 },
+    { bucketCuota: '41% a 50%', bucketScore: '950 - 959', Empleado: 0.0777, Independiente: 0.0799 },
+    { bucketCuota: '41% a 50%', bucketScore: '960 - 969', Empleado: 0.0638, Independiente: 0.0741 },
+    { bucketCuota: '41% a 50%', bucketScore: '970 - 979', Empleado: 0.0612, Independiente: 0.0642 },
+    { bucketCuota: '41% a 50%', bucketScore: '980 - 1000', Empleado: 0.0612, Independiente: 0.0642 },
+
+    { bucketCuota: '51% a 60%', bucketScore: '0 - 501', Empleado: 0.7706, Independiente: 0.7706 },
+    { bucketCuota: '51% a 60%', bucketScore: '502 - 573', Empleado: 0.7706, Independiente: 0.7706 },
+    { bucketCuota: '51% a 60%', bucketScore: '574 - 607', Empleado: 0.6325, Independiente: 0.6961 },
+    { bucketCuota: '51% a 60%', bucketScore: '608 - 671', Empleado: 0.5771, Independiente: 0.5771 },
+    { bucketCuota: '51% a 60%', bucketScore: '672 - 735', Empleado: 0.4233, Independiente: 0.4233 },
+    { bucketCuota: '51% a 60%', bucketScore: '736 - 799', Empleado: 0.2602, Independiente: 0.2705 },
+    { bucketCuota: '51% a 60%', bucketScore: '800 - 904', Empleado: 0.1205, Independiente: 0.1383 },
+    { bucketCuota: '51% a 60%', bucketScore: '905 - 949', Empleado: 0.0733, Independiente: 0.0774 },
+    { bucketCuota: '51% a 60%', bucketScore: '950 - 959', Empleado: 0.0589, Independiente: 0.0660 },
+    { bucketCuota: '51% a 60%', bucketScore: '960 - 969', Empleado: 0.0537, Independiente: 0.0566 },
+    { bucketCuota: '51% a 60%', bucketScore: '970 - 979', Empleado: 0.0479, Independiente: 0.0512 },
+    { bucketCuota: '51% a 60%', bucketScore: '980 - 1000', Empleado: 0.0554, Independiente: 0.0554 },
+
+    { bucketCuota: '61% a 70%', bucketScore: '0 - 501', Empleado: 0.5619, Independiente: 0.5619 },
+    { bucketCuota: '61% a 70%', bucketScore: '502 - 573', Empleado: 0.5619, Independiente: 0.5619 },
+    { bucketCuota: '61% a 70%', bucketScore: '574 - 607', Empleado: 0.6773, Independiente: 0.7139 },
+    { bucketCuota: '61% a 70%', bucketScore: '608 - 671', Empleado: 0.5831, Independiente: 0.5831 },
+    { bucketCuota: '61% a 70%', bucketScore: '672 - 735', Empleado: 0.3869, Independiente: 0.3869 },
+    { bucketCuota: '61% a 70%', bucketScore: '736 - 799', Empleado: 0.2585, Independiente: 0.2622 },
+    { bucketCuota: '61% a 70%', bucketScore: '800 - 904', Empleado: 0.1147, Independiente: 0.1350 },
+    { bucketCuota: '61% a 70%', bucketScore: '905 - 949', Empleado: 0.0672, Independiente: 0.0746 },
+    { bucketCuota: '61% a 70%', bucketScore: '950 - 959', Empleado: 0.0567, Independiente: 0.0567 },
+    { bucketCuota: '61% a 70%', bucketScore: '960 - 969', Empleado: 0.0517, Independiente: 0.0652 },
+    { bucketCuota: '61% a 70%', bucketScore: '970 - 979', Empleado: 0.0528, Independiente: 0.0625 },
+    { bucketCuota: '61% a 70%', bucketScore: '980 - 1000', Empleado: 0.0434, Independiente: 0.0434 },
+
+    { bucketCuota: '71% a 80%', bucketScore: '0 - 501', Empleado: 0.5564, Independiente: 0.5564 },
+    { bucketCuota: '71% a 80%', bucketScore: '502 - 573', Empleado: 0.5564, Independiente: 0.5564 },
+    { bucketCuota: '71% a 80%', bucketScore: '574 - 607', Empleado: 0.5891, Independiente: 0.5891 },
+    { bucketCuota: '71% a 80%', bucketScore: '608 - 671', Empleado: 0.5022, Independiente: 0.5696 },
+    { bucketCuota: '71% a 80%', bucketScore: '672 - 735', Empleado: 0.3499, Independiente: 0.3499 },
+    { bucketCuota: '71% a 80%', bucketScore: '736 - 799', Empleado: 0.2102, Independiente: 0.2496 },
+    { bucketCuota: '71% a 80%', bucketScore: '800 - 904', Empleado: 0.0980, Independiente: 0.1097 },
+    { bucketCuota: '71% a 80%', bucketScore: '905 - 949', Empleado: 0.0551, Independiente: 0.0620 },
+    { bucketCuota: '71% a 80%', bucketScore: '950 - 959', Empleado: 0.0403, Independiente: 0.0457 },
+    { bucketCuota: '71% a 80%', bucketScore: '960 - 969', Empleado: 0.0412, Independiente: 0.0560 },
+    { bucketCuota: '71% a 80%', bucketScore: '970 - 979', Empleado: 0.0379, Independiente: 0.0379 },
+    { bucketCuota: '71% a 80%', bucketScore: '980 - 1000', Empleado: 0.0274, Independiente: 0.0274 },
+
+    { bucketCuota: 'Mayor a 80%', bucketScore: '0 - 501', Empleado: 0.5132, Independiente: 0.5132 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '502 - 573', Empleado: 0.5132, Independiente: 0.5132 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '574 - 607', Empleado: 0.5132, Independiente: 0.5132 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '608 - 671', Empleado: 0.5132, Independiente: 0.5132 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '672 - 735', Empleado: 0.2231, Independiente: 0.2395 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '736 - 799', Empleado: 0.1629, Independiente: 0.2522 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '800 - 904', Empleado: 0.0776, Independiente: 0.0918 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '905 - 949', Empleado: 0.0493, Independiente: 0.0493 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '950 - 959', Empleado: 0.0366, Independiente: 0.0366 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '960 - 969', Empleado: 0.0332, Independiente: 0.0332 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '970 - 979', Empleado: 0.0357, Independiente: 0.0690 },
+    { bucketCuota: 'Mayor a 80%', bucketScore: '980 - 1000', Empleado: 0.0273, Independiente: 0.0273 }
+  ];
+
+  function round2(n) {
     var value = Number(n) || 0;
-    return Math.floor(value * 100) / 100;
+    return Math.round(value * 100) / 100;
   }
 
-  function clamp(value, min, max) {
-    var n = Number(value) || 0;
-    if (n < min) return min;
-    if (n > max) return max;
-    return n;
+  function normalizeRateDecimal(n) {
+    return Number((round2((Number(n) || 0) * 100) / 100).toFixed(4));
   }
 
-  function deepClone(value) {
-    return JSON.parse(JSON.stringify(value));
-  }
-
-  function normalizarTasaMensual(valor) {
-    if (valor === null || typeof valor === 'undefined' || String(valor).trim() === '') {
-      return null;
-    }
-
-    var raw = String(valor).trim();
-    raw = raw.replace(/\s/g, '').replace('%', '').replace(',', '.');
-
-    var n = Number(raw);
-
-    if (!Number.isFinite(n)) return null;
-
-    if (n >= 2) return n / 100;
-    if (n >= 1 && n < 2) return n / 100;
-    return n;
-  }
-
-  function tasaMensualADisplayPorcentaje(tasaMensual) {
-    var n = Number(tasaMensual);
-    if (!Number.isFinite(n)) return '0.00%';
-    return trunc2(n * 100).toFixed(2) + '%';
-  }
-
-  function parseMoneyFlexible(value) {
-    if (value === null || typeof value === 'undefined') return 0;
-
+  function toNumber(value) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+    if (value === null || typeof value === 'undefined') return NaN;
     var raw = String(value).trim();
-    if (!raw) return 0;
-
-    raw = raw.replace(/\$/g, '').replace(/\s/g, '');
-
-    if (/^\d+\.\d+$/.test(raw)) {
-      return Number(raw) || 0;
-    }
-
-    if (/^\d+,\d+$/.test(raw)) {
-      return Number(raw.replace(',', '.')) || 0;
-    }
-
-    if (/^\d{1,3}(\.\d{3})+,\d+$/.test(raw)) {
-      return Number(raw.replace(/\./g, '').replace(',', '.')) || 0;
-    }
-
-    if (/^\d{1,3}(,\d{3})+\.\d+$/.test(raw)) {
-      return Number(raw.replace(/,/g, '')) || 0;
-    }
-
-    if (/^\d{1,3}(\.\d{3})+$/.test(raw)) {
-      return Number(raw.replace(/\./g, '')) || 0;
-    }
-
-    if (/^\d{1,3}(,\d{3})+$/.test(raw)) {
-      return Number(raw.replace(/,/g, '')) || 0;
-    }
-
-    return Number(raw) || 0;
+    if (!raw) return NaN;
+    var normalized = raw
+      .replace(/\$/g, '')
+      .replace(/\s/g, '')
+      .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+      .replace(/,/g, '.');
+    return Number(normalized);
   }
 
-  function buildConfig(rawConfig) {
-    var raw = rawConfig || {};
-    var tasasRaw = raw.tasasRaw || {};
-    var montoMaximosPorPlazo = raw.montoMaximosPorPlazo || {};
+  function toBoolean(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    if (value === null || typeof value === 'undefined') return false;
+    var raw = String(value).trim().toLowerCase();
+    return ['true', '1', 'si', 'sí', 'yes', 'on'].indexOf(raw) >= 0;
+  }
 
+  function mapQuotaBucket(pct) {
+    if (!Number.isFinite(pct) || pct < 0) return null;
+    if (pct <= 0.10) return '0 a 10%';
+    if (pct <= 0.20) return '11% a 20%';
+    if (pct <= 0.40) return '21% a 30%'; // intencional: así viene la matriz productiva
+    if (pct <= 0.50) return '41% a 50%';
+    if (pct <= 0.60) return '51% a 60%';
+    if (pct <= 0.70) return '61% a 70%';
+    if (pct < 0.80) return '71% a 80%';
+    return 'Mayor a 80%';
+  }
+
+  function mapScoreBucket(score) {
+    if (!Number.isFinite(score)) return null;
+    for (var i = 0; i < SCORE_BUCKETS.length; i += 1) {
+      var bucket = SCORE_BUCKETS[i];
+      if (score >= bucket.min && score <= bucket.max) return bucket.label;
+    }
+    return null;
+  }
+
+  function normalizeCustomerType(activity) {
+    if (activity === null || typeof activity === 'undefined') return null;
+    var normalized = String(activity).trim();
+    if (!normalized) return null;
+    return normalized === 'Independiente' ? 'Independiente' : 'Empleado';
+  }
+
+  function getMaxAmountByTerm(input, term) {
+    var map = {
+      24: toNumber(input.monto_max_24_tesla),
+      36: toNumber(input.monto_max_36_tesla),
+      48: toNumber(input.monto_max_48_tesla),
+      60: toNumber(input.monto_max_60_tesla),
+      72: toNumber(input.monto_max_72_tesla)
+    };
+    return map[term];
+  }
+
+  function lookupPm(bucketCuota, bucketScore, tipoCliente) {
+    for (var i = 0; i < PRODUCTIVE_PM_MATRIX.length; i += 1) {
+      var row = PRODUCTIVE_PM_MATRIX[i];
+      if (row.bucketCuota === bucketCuota && row.bucketScore === bucketScore) {
+        var value = tipoCliente === 'Independiente' ? row.Independiente : row.Empleado;
+        return Number.isFinite(value) ? value : null;
+      }
+    }
+    return null;
+  }
+
+  function buildError(code, message, data) {
     return {
-      clienteId: raw.clienteId || '',
-      negocioId: raw.negocioId || '',
-      respuestaFinalTesla: raw.respuestaFinalTesla || '',
-      valorVehiculo: parseMoneyFlexible(raw.valorVehiculo),
-      valorFinanciar: parseMoneyFlexible(raw.valorFinanciar),
-      cuotaInicialMinimaPerfil: parseMoneyFlexible(raw.cuotaInicialMinimaPerfil),
-      cuotaMaximaPerfil: parseMoneyFlexible(raw.cuotaMaximaPerfil),
-      plazo: toNum(raw.plazo, 0),
-
-      valorSeguroTodoRiesgo: parseMoneyFlexible(
-        raw.valorSeguroTodoRiesgoRaw || raw.valorSeguroTodoRiesgo
-      ),
-
-      tasasRaw: {
-        tasa_0_10: tasasRaw.tasa_0_10 || '',
-        tasa_11_20: tasasRaw.tasa_11_20 || '',
-        tasa_21_30: tasasRaw.tasa_21_30 || '',
-        tasa_31_40: tasasRaw.tasa_31_40 || '',
-        tasa_41_50: tasasRaw.tasa_41_50 || '',
-        tasa_mayor_50: tasasRaw.tasa_mayor_50 || ''
-      },
-
-      tasasNormalizadas: {
-        tasa_0_10: normalizarTasaMensual(tasasRaw.tasa_0_10),
-        tasa_11_20: normalizarTasaMensual(tasasRaw.tasa_11_20),
-        tasa_21_30: normalizarTasaMensual(tasasRaw.tasa_21_30),
-        tasa_31_40: normalizarTasaMensual(tasasRaw.tasa_31_40),
-        tasa_41_50: normalizarTasaMensual(tasasRaw.tasa_41_50),
-        tasa_mayor_50: normalizarTasaMensual(tasasRaw.tasa_mayor_50)
-      },
-
-      montoMaximosPorPlazo: {
-        24: parseMoneyFlexible(montoMaximosPorPlazo['24']),
-        36: parseMoneyFlexible(montoMaximosPorPlazo['36']),
-        48: parseMoneyFlexible(montoMaximosPorPlazo['48']),
-        60: parseMoneyFlexible(montoMaximosPorPlazo['60']),
-        72: parseMoneyFlexible(montoMaximosPorPlazo['72']),
-        84: parseMoneyFlexible(montoMaximosPorPlazo['84'])
-      },
-
-      nodo: toNum(raw.nodo, 0),
-      score: toNum(raw.score, 0),
-      actividadEconomica: raw.actividadEconomica || '',
-      debug: !!raw.debug
+      status: 'ERROR',
+      engine_version: VERSION,
+      error_code: code,
+      mensaje_error: message,
+      data: data || null
     };
   }
 
-  function validarConfiguracion(config) {
-    var errors = [];
+  function buildOk(data) {
+    return {
+      status: 'OK',
+      engine_version: VERSION,
+      error_code: '',
+      mensaje_error: '',
+      data: data
+    };
+  }
 
-    if (!config.valorVehiculo || config.valorVehiculo <= 0) {
-      errors.push({
-        code: 'MISSING_VALOR_VEHICULO',
-        message: 'Falta valorVehiculo válido.'
+  function calculateRate(rawInput) {
+    var input = {
+      nodo_tesla: toNumber(rawInput.nodo_tesla),
+      score_tesla: toNumber(rawInput.score_tesla),
+      plazo_tesla: toNumber(rawInput.plazo_tesla),
+      actividad_economica_tesla: rawInput.actividad_economica_tesla,
+      valor_vehiculo_final_tesla: toNumber(rawInput.valor_vehiculo_final_tesla),
+      cuota_inicial_seleccionada_tesla: toNumber(rawInput.cuota_inicial_seleccionada_tesla),
+      monto_max_24_tesla: toNumber(rawInput.monto_max_24_tesla),
+      monto_max_36_tesla: toNumber(rawInput.monto_max_36_tesla),
+      monto_max_48_tesla: toNumber(rawInput.monto_max_48_tesla),
+      monto_max_60_tesla: toNumber(rawInput.monto_max_60_tesla),
+      monto_max_72_tesla: toNumber(rawInput.monto_max_72_tesla),
+      cuota_inicial_minima_tesla: toNumber(rawInput.cuota_inicial_minima_tesla),
+      seguro_desempleo_tesla: toBoolean(rawInput.seguro_desempleo_tesla),
+      seguro_todo_riesgo_tesla: toBoolean(rawInput.seguro_todo_riesgo_tesla)
+    };
+
+    if (!Number.isFinite(input.valor_vehiculo_final_tesla) || input.valor_vehiculo_final_tesla <= 0) {
+      return buildError('VEHICLE_VALUE_ZERO', 'El valor de vehículo no puede ser $0.');
+    }
+
+    if (!Number.isFinite(input.plazo_tesla)) {
+      return buildError('TERM_EMPTY', 'El campo plazo se encuentra vacío.');
+    }
+
+    if (CONFIG.allowedTerms.indexOf(input.plazo_tesla) === -1) {
+      return buildError('TERM_INVALID', 'El plazo seleccionado no es válido.');
+    }
+
+    var montoFinanciado = input.valor_vehiculo_final_tesla - input.cuota_inicial_seleccionada_tesla;
+    var porcentajeCuotaInicial = input.cuota_inicial_seleccionada_tesla / input.valor_vehiculo_final_tesla;
+    var bucketCuota = mapQuotaBucket(porcentajeCuotaInicial);
+    var bucketScore = mapScoreBucket(input.score_tesla);
+    var tipoCliente = normalizeCustomerType(input.actividad_economica_tesla);
+    var montoMaximo = getMaxAmountByTerm(input, input.plazo_tesla);
+
+    if (montoFinanciado < CONFIG.minFinancedAmount) {
+      return buildError('FINANCED_AMOUNT_BELOW_MIN', 'Cuota inicial es muy alta', {
+        monto_financiado: round2(montoFinanciado),
+        porcentaje_cuota_inicial: round2(porcentajeCuotaInicial * 100)
       });
     }
 
-    if (!config.plazo || config.plazo <= 0) {
-      errors.push({
-        code: 'MISSING_PLAZO',
-        message: 'Falta plazo válido.'
+    if (!Number.isFinite(montoMaximo)) {
+      return buildError('MAX_AMOUNT_NOT_AVAILABLE', 'No se encontró monto máximo para el plazo informado.', {
+        plazo_tesla: input.plazo_tesla
       });
     }
 
-    if (!config.valorSeguroTodoRiesgo || config.valorSeguroTodoRiesgo <= 0) {
-      errors.push({
-        code: 'MISSING_SEGURO_TODO_RIESGO',
-        message: 'Falta valorSeguroTodoRiesgo válido.'
+    if (montoFinanciado > montoMaximo) {
+      return buildError('FINANCED_AMOUNT_ABOVE_MAX', 'Cuota inicial muy baja', {
+        monto_financiado: round2(montoFinanciado),
+        monto_maximo: round2(montoMaximo)
       });
     }
 
-    if (!config.respuestaFinalTesla) {
-      errors.push({
-        code: 'MISSING_RESPUESTA_FINAL',
-        message: 'Falta respuestaFinalTesla.'
-      });
+    if (!bucketScore) {
+      return buildError('SCORE_NOT_PARAMETRIZED', 'El score no se encuentra parametrizado.');
     }
 
-    var tieneMontoMaximo = false;
-    var montoKeys = Object.keys(config.montoMaximosPorPlazo || {});
-    for (var j = 0; j < montoKeys.length; j++) {
-      if (toNum(config.montoMaximosPorPlazo[montoKeys[j]], 0) > 0) {
-        tieneMontoMaximo = true;
-        break;
-      }
+    if (!tipoCliente) {
+      return buildError('CUSTOMER_TYPE_MISSING', 'El tipo de cliente no se encuentra informado.');
     }
 
-    if (!tieneMontoMaximo) {
-      errors.push({
-        code: 'MISSING_MONTO_MAX_PLAZO',
-        message: 'No existen montos máximos parametrizados por plazo.'
-      });
+    var rentabilidadNMV = CONFIG.profitabilityByNode[input.nodo_tesla];
+    var ajusteTechoNodo = CONFIG.ceilingAdjustmentByNode[input.nodo_tesla];
+
+    if (!Number.isFinite(rentabilidadNMV) || !Number.isFinite(ajusteTechoNodo)) {
+      return buildError('NODE_NOT_PARAMETRIZED', 'El nodo no se encuentra parametrizado.');
     }
 
-    return {
-      ok: errors.length === 0,
-      errors: errors
-    };
-  }
-
-  function getMontoMaxPorPlazo(config, plazo) {
-    var p = Number(plazo);
-    var monto = toNum((config.montoMaximosPorPlazo || {})[p], 0);
-
-    if (PLAZOS_SOPORTADOS.indexOf(p) === -1) {
-      return {
-        ok: false,
-        value: 0,
-        error: {
-          code: 'PLAZO_NO_SOPORTADO',
-          message: 'El plazo ' + p + ' no es soportado por el motor.'
-        }
-      };
+    var probabilidadMora = lookupPm(bucketCuota, bucketScore, tipoCliente);
+    if (!Number.isFinite(probabilidadMora)) {
+      return buildError('PM_NOT_PARAMETRIZED', 'No existe parametrización de probabilidad de mora para la combinación informada.');
     }
 
-    if (p === 84 && monto <= 0) {
-      return {
-        ok: false,
-        value: 0,
-        error: {
-          code: 'PLAZO_84_NO_PARAMETRIZADO',
-          message: '84 meses fue solicitado pero no está parametrizado.'
-        }
-      };
+    var flagSegmentoFondeoScore800 = input.score_tesla >= CONFIG.fundingScoreThreshold;
+    var flagOfertaScore950 = input.score_tesla >= CONFIG.highScoreThreshold;
+    var fundingCostTable = flagSegmentoFondeoScore800 ? CONFIG.fundingCostByTerm : CONFIG.fundingCostByTermLowScore;
+    var fundingCostTableName = flagSegmentoFondeoScore800 ? 'fundingCostByTerm' : 'fundingCostByTermLowScore';
+    var usuryAnnual = flagSegmentoFondeoScore800 ? CONFIG.usuryAnnual : CONFIG.usuryAnnualLowScore;
+    var usuryAnnualName = flagSegmentoFondeoScore800 ? 'usuryAnnual' : 'usuryAnnualLowScore';
+    var costoFondosNMV = fundingCostTable[input.plazo_tesla];
+
+    if (!Number.isFinite(costoFondosNMV)) {
+      return buildError('FUNDING_COST_NOT_PARAMETRIZED', 'No existe costo de fondos parametrizado para el plazo informado.');
     }
 
-    if (monto <= 0) {
-      return {
-        ok: false,
-        value: 0,
-        error: {
-          code: 'PLAZO_SIN_MONTO_MAXIMO',
-          message: 'El plazo ' + p + ' no tiene monto máximo parametrizado.'
-        }
-      };
-    }
+    var feeDealerNMV = CONFIG.feeDealerNMV;
+    var costoOperativoNMV = CONFIG.operatingCostAnnual / 12;
+    var icaNMV = CONFIG.icaAnnual / 12;
+    var actividadEconomicaNMV = tipoCliente === 'Independiente' ? (CONFIG.independentActivityAnnual / 12) : 0;
+    var riesgoInicialNMV = CONFIG.riskInitialAnnual / 12;
+    var tasaUsuraNMV = usuryAnnual / 12;
+    var tasaTechoNMV = tasaUsuraNMV - ajusteTechoNodo;
+    var tasaPisoNMV = CONFIG.floorMonthlyNMV;
 
-    return {
-      ok: true,
-      value: monto
-    };
-  }
+    var espacioNMV = Math.max(
+      0,
+      tasaTechoNMV - (costoFondosNMV + feeDealerNMV + costoOperativoNMV + icaNMV + actividadEconomicaNMV + rentabilidadNMV)
+    );
 
-  function getPlazosDisponibles(config) {
-    var plazos = [];
-    var p;
+    var riesgoCreditoNMV = (espacioNMV - riesgoInicialNMV) * probabilidadMora;
+    var tasaModeloBrutaNMV = costoFondosNMV + feeDealerNMV + costoOperativoNMV + icaNMV + actividadEconomicaNMV + rentabilidadNMV + riesgoInicialNMV + riesgoCreditoNMV;
 
-    for (var i = 0; i < PLAZOS_SOPORTADOS.length; i++) {
-      p = PLAZOS_SOPORTADOS[i];
-      if (getMontoMaxPorPlazo(config, p).ok) {
-        plazos.push(p);
-      }
-    }
+    var tasaBaseV2NMV = tasaModeloBrutaNMV;
+    if (tasaModeloBrutaNMV > tasaTechoNMV) tasaBaseV2NMV = tasaTechoNMV;
+    else if (tasaModeloBrutaNMV < tasaPisoNMV) tasaBaseV2NMV = tasaPisoNMV;
 
-    return plazos;
-  }
+    var descuentoComercialNMV = flagOfertaScore950 ? 0 : (CONFIG.commercialDiscountLifeNMV + CONFIG.commercialDiscountEvNMV);
+    var descuentoSeguroDesempleoNMV = input.seguro_desempleo_tesla ? CONFIG.unemploymentInsuranceDiscountNMV : 0;
+    var descuentoSeguroTodoRiesgoNMV = input.seguro_todo_riesgo_tesla ? CONFIG.allRiskInsuranceDiscountNMV : 0;
+    var descuentoTotalComercialNMV = descuentoComercialNMV + descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV;
 
-  function getCuotaMinimaDinamica(config, plazo) {
-    var montoMaxResult = getMontoMaxPorPlazo(config, plazo);
-    if (!montoMaxResult.ok) {
-      return {
-        ok: false,
-        error: montoMaxResult.error
-      };
-    }
+    var tasaFinalPreChecksNMV;
+    var tasaFinalPostChecksNMV;
+    var motivoTasaFinal;
 
-    var valorVehiculo = toNum(config.valorVehiculo, 0);
-    var cuotaMinimaPerfil = toNum(config.cuotaInicialMinimaPerfil, 0);
-    var montoMaxPlazo = montoMaxResult.value;
-
-    var cuotaMinimaPorPlazo = 0;
-    if (montoMaxPlazo > 0 && valorVehiculo > 0) {
-      cuotaMinimaPorPlazo = Math.max(0, valorVehiculo - montoMaxPlazo);
-    }
-
-    return {
-      ok: true,
-      data: {
-        valorVehiculo: valorVehiculo,
-        cuotaMinimaPerfil: cuotaMinimaPerfil,
-        montoMaxPlazo: montoMaxPlazo,
-        cuotaMinimaPorPlazo: cuotaMinimaPorPlazo,
-        cuotaMinimaFinal: Math.max(cuotaMinimaPerfil, cuotaMinimaPorPlazo)
-      }
-    };
-  }
-
-  function getCuotaMaximaDinamica(config) {
-    var valorVehiculo = toNum(config.valorVehiculo, 0);
-
-    return {
-      ok: true,
-      data: {
-        cuotaMaximaPerfilInformativa: toNum(config.cuotaMaximaPerfil, 0),
-        cuotaMaximaPorMontoMinimo: Math.max(0, valorVehiculo - MONTO_FINANCIADO_MINIMO),
-        cuotaMaximaFinal: Math.max(0, valorVehiculo - MONTO_FINANCIADO_MINIMO)
-      }
-    };
-  }
-
-  function getRestriccionesFinales(config, plazo) {
-    var minResult = getCuotaMinimaDinamica(config, plazo);
-    if (!minResult.ok) return minResult;
-
-    var maxResult = getCuotaMaximaDinamica(config);
-    if (!maxResult.ok) return maxResult;
-
-    var minFinal = minResult.data.cuotaMinimaFinal;
-    var maxFinal = maxResult.data.cuotaMaximaFinal;
-
-    if (maxFinal < minFinal) {
-      maxFinal = minFinal;
-    }
-
-    return {
-      ok: true,
-      data: {
-        plazo: Number(plazo),
-        montoMaxPlazo: minResult.data.montoMaxPlazo,
-        cuotaMinimaPerfil: minResult.data.cuotaMinimaPerfil,
-        cuotaMinimaPorPlazo: minResult.data.cuotaMinimaPorPlazo,
-        cuotaMinimaFinal: minFinal,
-        cuotaMaximaPerfilInformativa: maxResult.data.cuotaMaximaPerfilInformativa,
-        cuotaMaximaPorMontoMinimo: maxResult.data.cuotaMaximaPorMontoMinimo,
-        cuotaMaximaFinal: maxFinal
-      }
-    };
-  }
-
-  function getTasaAplicableFallback(config, cuotaInicial, valorVehiculo) {
-    if (!valorVehiculo || valorVehiculo <= 0) {
-      return {
-        ok: false,
-        error: {
-          code: 'VALOR_VEHICULO_INVALIDO',
-          message: 'No se puede obtener tasa sin valorVehiculo válido.'
-        }
-      };
-    }
-
-    var porcentaje = (cuotaInicial / valorVehiculo) * 100;
-    var tasa = null;
-    var bucket = '';
-
-    if (porcentaje <= 10) {
-      tasa = config.tasasNormalizadas.tasa_0_10;
-      bucket = '0-10';
-    } else if (porcentaje <= 20) {
-      tasa = config.tasasNormalizadas.tasa_11_20;
-      bucket = '11-20';
-    } else if (porcentaje <= 30) {
-      tasa = config.tasasNormalizadas.tasa_21_30;
-      bucket = '21-30';
-    } else if (porcentaje <= 40) {
-      tasa = config.tasasNormalizadas.tasa_31_40;
-      bucket = '31-40';
-    } else if (porcentaje <= 50) {
-      tasa = config.tasasNormalizadas.tasa_41_50;
-      bucket = '41-50';
+    if (flagOfertaScore950) {
+      tasaFinalPreChecksNMV = CONFIG.fixedHighScoreNMV;
+      tasaFinalPostChecksNMV = CONFIG.fixedHighScoreNMV - (descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV);
+      motivoTasaFinal = (descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV) > 0
+        ? 'Oferta score >= 950 + Seguros opcionales'
+        : 'Oferta score >= 950';
     } else {
-      tasa = config.tasasNormalizadas.tasa_mayor_50;
-      bucket = '>50';
-    }
+      var tasaPostChecksRawNMV = tasaBaseV2NMV - descuentoTotalComercialNMV;
+      tasaFinalPreChecksNMV = tasaBaseV2NMV - descuentoComercialNMV;
 
-    if (!Number.isFinite(tasa)) {
-      return {
-        ok: false,
-        error: {
-          code: 'TASA_INVALIDA_BUCKET',
-          message: 'La tasa del bucket ' + bucket + ' no es válida.'
-        }
-      };
-    }
-
-    return {
-      ok: true,
-      data: {
-        rateSource: 'fallback_bucket_table',
-        porcentajeCuotaInicial: porcentaje,
-        bucket: bucket,
-        bucketCuotaPm: null,
-        bucketScorePm: null,
-        probabilidadMora: null,
-        motivoTasaFinal: 'Fallback por tabla parametrizada',
-        tasaRaw: (function () {
-          if (bucket === '0-10') return config.tasasRaw.tasa_0_10;
-          if (bucket === '11-20') return config.tasasRaw.tasa_11_20;
-          if (bucket === '21-30') return config.tasasRaw.tasa_21_30;
-          if (bucket === '31-40') return config.tasasRaw.tasa_31_40;
-          if (bucket === '41-50') return config.tasasRaw.tasa_41_50;
-          return config.tasasRaw.tasa_mayor_50;
-        })(),
-        tasaNormalizada: tasa,
-        tasaMostrada: tasaMensualADisplayPorcentaje(tasa),
-        tasaFinalEA: Math.pow(1 + tasa, 12) - 1,
-        ratePolicyResult: null
+      if (tasaPostChecksRawNMV < tasaPisoNMV) {
+        tasaFinalPostChecksNMV = tasaPisoNMV;
+        motivoTasaFinal = 'Piso comercial';
+      } else {
+        tasaFinalPostChecksNMV = tasaPostChecksRawNMV;
+        motivoTasaFinal = (descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV) > 0
+          ? 'Descuento EV + Vida + Seguros'
+          : 'Descuento EV + Vida';
       }
-    };
+    }
+
+    if (!Number.isFinite(tasaFinalPostChecksNMV)) {
+      return buildError('RATE_EMPTY', 'El campo tasa se encuentra vacío.');
+    }
+
+    var tasaFinalNMVNormalizada = normalizeRateDecimal(tasaFinalPostChecksNMV);
+    var tasaFinalEANormalizada = Number((Math.pow(1 + tasaFinalNMVNormalizada, 12) - 1).toFixed(6));
+
+    return buildOk({
+      nodo_tesla: input.nodo_tesla,
+      score_tesla: input.score_tesla,
+      plazo_tesla: input.plazo_tesla,
+      actividad_economica_tesla: input.actividad_economica_tesla,
+      valor_vehiculo_final_tesla: round2(input.valor_vehiculo_final_tesla),
+      cuota_inicial_seleccionada_tesla: round2(input.cuota_inicial_seleccionada_tesla),
+      cuota_inicial_minima_tesla: round2(input.cuota_inicial_minima_tesla),
+      monto_financiado: round2(montoFinanciado),
+      porcentaje_cuota_inicial: round2(porcentajeCuotaInicial),
+      bucket_cuota_pm: bucketCuota,
+      bucket_score_pm: bucketScore,
+      tipo_cliente_pm: tipoCliente,
+      probabilidad_mora: round2(probabilidadMora),
+      costo_de_fondos_nmv: normalizeRateDecimal(costoFondosNMV),
+      fee_dealer_nmv: normalizeRateDecimal(feeDealerNMV),
+      costo_operativo_nmv: normalizeRateDecimal(costoOperativoNMV),
+      ica_nmv: normalizeRateDecimal(icaNMV),
+      actividad_economica_nmv: normalizeRateDecimal(actividadEconomicaNMV),
+      rentabilidad_nmv: normalizeRateDecimal(rentabilidadNMV),
+      riesgo_inicial_nmv: normalizeRateDecimal(riesgoInicialNMV),
+      tasa_usura_nmv: normalizeRateDecimal(tasaUsuraNMV),
+      ajuste_tasa_techo_nodo_nmv: normalizeRateDecimal(ajusteTechoNodo),
+      tasa_techo_nmv: normalizeRateDecimal(tasaTechoNMV),
+      tasa_piso_nmv: normalizeRateDecimal(tasaPisoNMV),
+      espacio_nmv: normalizeRateDecimal(espacioNMV),
+      riesgo_credito_nmv: normalizeRateDecimal(riesgoCreditoNMV),
+      tasa_modelo_bruta_nmv: normalizeRateDecimal(tasaModeloBrutaNMV),
+      tasa_base_v2_nmv: normalizeRateDecimal(tasaBaseV2NMV),
+      descuento_comercial_nmv: normalizeRateDecimal(descuentoComercialNMV),
+      descuento_seguro_desempleo_nmv: normalizeRateDecimal(descuentoSeguroDesempleoNMV),
+      descuento_seguro_todo_riesgo_nmv: normalizeRateDecimal(descuentoSeguroTodoRiesgoNMV),
+      descuento_total_comercial_nmv: normalizeRateDecimal(descuentoTotalComercialNMV),
+      tasa_final_pre_checks_nmv: normalizeRateDecimal(tasaFinalPreChecksNMV),
+      tasa_final_post_checks_nmv: tasaFinalNMVNormalizada,
+      tasa_final_nmv: tasaFinalNMVNormalizada,
+      tasa_final_ea: tasaFinalEANormalizada,
+      motivo_tasa_final: motivoTasaFinal,
+      flag_segmento_fondeo_score_800: flagSegmentoFondeoScore800,
+      tabla_costo_fondos_aplicada: fundingCostTableName,
+      tasa_usura_aplicada: usuryAnnual,
+      nombre_tasa_usura_aplicada: usuryAnnualName,
+      flag_oferta_score_950: flagOfertaScore950
+    });
   }
 
-  function resolverTasaDesdePolicy(config, cuotaInicial, plazo, incluirAuto, incluirDesempleo) {
-    if (!window.TeslaRatePolicy || typeof window.TeslaRatePolicy.calculateRate !== 'function') {
-      return {
-        ok: false,
-        error: {
-          code: 'RATE_POLICY_UNAVAILABLE',
-          message: 'No se encontró TeslaRatePolicy.calculateRate.'
-        }
-      };
+  window.TeslaRatePolicy = {
+    version: VERSION,
+    calculateRate: calculateRate,
+    _private: {
+      mapQuotaBucket: mapQuotaBucket,
+      mapScoreBucket: mapScoreBucket,
+      normalizeCustomerType: normalizeCustomerType
     }
-
-    var payload = {
-      nodo_tesla: config.nodo,
-      score_tesla: config.score,
-      plazo_tesla: plazo,
-      actividad_economica_tesla: config.actividadEconomica,
-      valor_vehiculo_final_tesla: config.valorVehiculo,
-      cuota_inicial_seleccionada_tesla: cuotaInicial,
-      monto_max_24_tesla: toNum(config.montoMaximosPorPlazo[24], 0),
-      monto_max_36_tesla: toNum(config.montoMaximosPorPlazo[36], 0),
-      monto_max_48_tesla: toNum(config.montoMaximosPorPlazo[48], 0),
-      monto_max_60_tesla: toNum(config.montoMaximosPorPlazo[60], 0),
-      monto_max_72_tesla: toNum(config.montoMaximosPorPlazo[72], 0),
-      monto_max_84_tesla: toNum(config.montoMaximosPorPlazo[84], 0),
-      cuota_inicial_minima_tesla: toNum(config.cuotaInicialMinimaPerfil, 0),
-      seguro_desempleo_tesla: !!incluirDesempleo,
-      seguro_todo_riesgo_tesla: !!incluirAuto
-    };
-
-    var result = window.TeslaRatePolicy.calculateRate(payload);
-
-    if (!result || result.status !== 'OK' || !result.data || !Number.isFinite(Number(result.data.tasa_final_nmv))) {
-      return {
-        ok: false,
-        error: {
-          code: (result && result.error_code) || 'RATE_POLICY_ERROR',
-          message: (result && result.mensaje_error) || 'El motor de tasa no devolvió una tasa válida.',
-          detail: result || null
-        }
-      };
-    }
-
-    var data = deepClone(result.data);
-    var sanitizedPolicyResult = deepClone(result);
-
-    if (data && Object.prototype.hasOwnProperty.call(data, 'flag_oferta_score_800')) {
-      if (!Object.prototype.hasOwnProperty.call(data, 'flag_oferta_score_950')) {
-        data.flag_oferta_score_950 = !!data.flag_oferta_score_800;
-      }
-      delete data.flag_oferta_score_800;
-    }
-
-    if (sanitizedPolicyResult && sanitizedPolicyResult.data && Object.prototype.hasOwnProperty.call(sanitizedPolicyResult.data, 'flag_oferta_score_800')) {
-      if (!Object.prototype.hasOwnProperty.call(sanitizedPolicyResult.data, 'flag_oferta_score_950')) {
-        sanitizedPolicyResult.data.flag_oferta_score_950 = !!sanitizedPolicyResult.data.flag_oferta_score_800;
-      }
-      delete sanitizedPolicyResult.data.flag_oferta_score_800;
-    }
-
-    return {
-      ok: true,
-      data: {
-        rateSource: 'rate_policy',
-        porcentajeCuotaInicial: Number(data.porcentaje_cuota_inicial),
-        bucket: null,
-        bucketCuotaPm: data.bucket_cuota_pm || null,
-        bucketScorePm: data.bucket_score_pm || null,
-        probabilidadMora: Number.isFinite(Number(data.probabilidad_mora)) ? Number(data.probabilidad_mora) : null,
-        motivoTasaFinal: data.motivo_tasa_final || '',
-        tasaRaw: '',
-        tasaNormalizada: Number(data.tasa_final_nmv),
-        tasaMostrada: tasaMensualADisplayPorcentaje(Number(data.tasa_final_nmv)),
-        tasaFinalEA: Number.isFinite(Number(data.tasa_final_ea)) ? Number(data.tasa_final_ea) : null,
-        ratePolicyResult: sanitizedPolicyResult
-      }
-    };
-  }
-
-  function resolverTasa(config, cuotaInicial, plazo, incluirAuto, incluirDesempleo) {
-    var policyResult = resolverTasaDesdePolicy(
-      config,
-      cuotaInicial,
-      plazo,
-      incluirAuto,
-      incluirDesempleo
-    );
-
-    if (policyResult.ok) {
-      return policyResult;
-    }
-
-    var fallbackResult = getTasaAplicableFallback(config, cuotaInicial, config.valorVehiculo);
-    if (fallbackResult.ok) {
-      fallbackResult.data.ratePolicyResult = {
-        status: 'ERROR',
-        error: policyResult.error.code,
-        message: policyResult.error.message,
-        detail: policyResult.error.detail || null
-      };
-      return fallbackResult;
-    }
-
-    return policyResult;
-  }
-
-  function calcularCuotaBase(capital, tasaMensual, plazo) {
-    var i = Number(tasaMensual) || 0;
-    var n = Number(plazo) || 0;
-
-    if (n <= 0) return 0;
-    if (i === 0) return capital / n;
-
-    var factor = Math.pow(1 + i, n);
-    return capital * ((i * factor) / (factor - 1));
-  }
-
-  function validarSanidadSeguros(config, calculation) {
-    var warnings = [];
-
-    if (calculation.seguros.valorSeguroAuto > config.valorVehiculo * 0.1) {
-      warnings.push({
-        code: 'SEGURO_AUTO_OUTLIER',
-        message: 'El seguro auto mensual luce desproporcionado frente al valor del vehículo.',
-        valorSeguroAuto: calculation.seguros.valorSeguroAuto,
-        valorVehiculo: config.valorVehiculo
-      });
-    }
-
-    if (calculation.seguros.valorSeguroAuto > calculation.cuotaBase * 3) {
-      warnings.push({
-        code: 'SEGURO_AUTO_SUPERA_MULTIPLO_CUOTA_BASE',
-        message: 'El seguro auto mensual supera ampliamente la cuota base.',
-        valorSeguroAuto: calculation.seguros.valorSeguroAuto,
-        cuotaBase: calculation.cuotaBase
-      });
-    }
-
-    if (calculation.seguros.valorSeguroAuto > 2000000) {
-      warnings.push({
-        code: 'SEGURO_AUTO_MENSUAL_ATIPICO',
-        message: 'El seguro auto mensual supera un umbral técnico de revisión.',
-        valorSeguroAuto: calculation.seguros.valorSeguroAuto
-      });
-    }
-
-    return warnings;
-  }
-
-  function calcularOferta(config, input) {
-    var plazo = toNum(input.plazo, config.plazo);
-
-    var restriccionesResult = getRestriccionesFinales(config, plazo);
-    if (!restriccionesResult.ok) return restriccionesResult;
-
-    var restricciones = restriccionesResult.data;
-    var cuotaInicial = clamp(
-      toNum(input.cuotaInicial, restricciones.cuotaMinimaFinal),
-      restricciones.cuotaMinimaFinal,
-      restricciones.cuotaMaximaFinal
-    );
-
-    var valorVehiculo = toNum(config.valorVehiculo, 0);
-    var valorFinanciado = Math.max(0, valorVehiculo - cuotaInicial);
-
-    if (valorFinanciado < MONTO_FINANCIADO_MINIMO) {
-      return {
-        ok: false,
-        error: {
-          code: 'CAPITAL_FINANCIADO_MENOR_MINIMO',
-          message: 'El capital financiado quedó por debajo del mínimo permitido.'
-        }
-      };
-    }
-
-    var incluirAuto = !!input.incluirSeguroAuto;
-    var incluirDesempleo = !!input.incluirSeguroDesempleo;
-
-    var tasaResult = resolverTasa(
-      config,
-      cuotaInicial,
-      plazo,
-      incluirAuto,
-      incluirDesempleo
-    );
-
-    if (!tasaResult.ok) {
-      return tasaResult;
-    }
-
-    var cuotaBase = calcularCuotaBase(
-      valorFinanciado,
-      tasaResult.data.tasaNormalizada,
-      plazo
-    );
-
-    var seguroVida = (valorFinanciado / 1000000) * TARIFA_SEGURO_VIDA_POR_MILLON;
-    var seguroAuto = incluirAuto
-      ? (toNum(config.valorSeguroTodoRiesgo, 0) / MESES_SEGURO_AUTO)
-      : 0;
-
-    var baseDesempleo = cuotaBase + seguroVida + seguroAuto;
-    var seguroDesempleo = incluirDesempleo
-      ? (baseDesempleo * TASA_SEGURO_DESEMPLEO)
-      : 0;
-
-    var cuotaTotal = cuotaBase + seguroVida + seguroAuto + seguroDesempleo;
-
-    var calculation = {
-      engineVersion: ENGINE_VERSION,
-      restricciones: deepClone(restricciones),
-      valorVehiculo: valorVehiculo,
-      cuotaInicial: cuotaInicial,
-      porcentajeCuotaInicial: tasaResult.data.porcentajeCuotaInicial,
-      plazo: plazo,
-      capitalFinanciado: valorFinanciado,
-
-      rateSource: tasaResult.data.rateSource || 'unknown',
-      ratePolicyResult: tasaResult.data.ratePolicyResult || null,
-
-      tasaBucket: tasaResult.data.bucket,
-      bucketCuotaPm: tasaResult.data.bucketCuotaPm,
-      bucketScorePm: tasaResult.data.bucketScorePm,
-      probabilidadMora: tasaResult.data.probabilidadMora,
-      motivoTasaFinal: tasaResult.data.motivoTasaFinal,
-
-      tasaRaw: tasaResult.data.tasaRaw,
-      tasaNormalizada: tasaResult.data.tasaNormalizada,
-      tasaMostrada: tasaResult.data.tasaMostrada,
-      tasaFinalEA: tasaResult.data.tasaFinalEA,
-
-      seguros: {
-        autoSeleccionado: incluirAuto,
-        desempleoSeleccionado: incluirDesempleo,
-        valorSeguroVida: seguroVida,
-        valorSeguroAuto: seguroAuto,
-        valorSeguroDesempleo: seguroDesempleo
-      },
-      cuotaBase: cuotaBase,
-      cuotaTotal: cuotaTotal
-    };
-
-    calculation.warnings = validarSanidadSeguros(config, calculation);
-
-    return {
-      ok: true,
-      data: calculation
-    };
-  }
-
-  window.TeslaPricingEngine = {
-    version: ENGINE_VERSION,
-    constants: {
-      MONTO_FINANCIADO_MINIMO: MONTO_FINANCIADO_MINIMO,
-      MESES_SEGURO_AUTO: MESES_SEGURO_AUTO,
-      TASA_SEGURO_DESEMPLEO: TASA_SEGURO_DESEMPLEO,
-      TARIFA_SEGURO_VIDA_POR_MILLON: TARIFA_SEGURO_VIDA_POR_MILLON,
-      PLAZOS_SOPORTADOS: deepClone(PLAZOS_SOPORTADOS)
-    },
-    utils: {
-      toNum: toNum,
-      trunc2: trunc2,
-      clamp: clamp,
-      deepClone: deepClone,
-      normalizarTasaMensual: normalizarTasaMensual,
-      tasaMensualADisplayPorcentaje: tasaMensualADisplayPorcentaje,
-      parseMoneyFlexible: parseMoneyFlexible
-    },
-    buildConfig: buildConfig,
-    validarConfiguracion: validarConfiguracion,
-    getPlazosDisponibles: getPlazosDisponibles,
-    getMontoMaxPorPlazo: getMontoMaxPorPlazo,
-    getCuotaMinimaDinamica: getCuotaMinimaDinamica,
-    getCuotaMaximaDinamica: getCuotaMaximaDinamica,
-    getRestriccionesFinales: getRestriccionesFinales,
-    getTasaAplicableFallback: getTasaAplicableFallback,
-    resolverTasaDesdePolicy: resolverTasaDesdePolicy,
-    resolverTasa: resolverTasa,
-    validarSanidadSeguros: validarSanidadSeguros,
-    calcularOferta: calcularOferta
   };
 })(window);

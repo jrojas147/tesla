@@ -9,7 +9,7 @@
   <title>{{ page_meta.html_title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {{ standard_header_includes }}
-  <link rel="stylesheet" href="{{ get_asset_url('/Tesla/css/tesla-modern.css') }}">
+  <link rel="stylesheet" href="{{ get_asset_url('/Tesla JJC/css/tesla-modern.css') }}">
 </head>
 <body>
 
@@ -39,7 +39,7 @@
   {% set negocios = crm_objects(
     NEGOCIOS_OBJECT,
     negocio_query,
-    "id,rn_tesla,respuesta_final_tesla,caso_bizagi_tesla,codigo_sefi_tesla,nombre_sefi_tesla,actividad_detallada_bizagi_tesla,actividad_agrupada_bizagi_tesla,modelo_vehiculo_final_tesla,valor_vehiculo_final_tesla,valor_financiar_final_tesla,cuota_inicial_minima_tesla,cuota_maxima_tesla,plazo_tesla,valor_seguro_todo_riesgo_tesla,monto_max_24_meses_tesla,monto_max_36_meses_tesla,monto_max_48_meses_tesla,monto_max_60_meses_tesla,monto_max_72_meses_tesla,tasa_010_tesla,tasa_1120_tesla,tasa_2130_tesla,tasa_3140_tesla,tasa_4150_tesla,tasa_mayor_al_50_tesla,estado_flujo_cliente_tesla,flujo_bloqueado_tesla,motivo_bloqueo_flujo_tesla,fecha_decision_cliente_tesla,decision_cliente,fecha_envio_formulario_aceptacion_tesla,fecha_envio_formulario_reevaluacion_tesla,submission_id_aceptacion_tesla,submission_id_reevaluacion_tesla,plazo_seleccionado_tesla,capital_financiado_tesla,cuota_total_mensual_tesla"
+    "id,rn_tesla,respuesta_final_tesla,caso_bizagi_tesla,codigo_sefi_tesla,nombre_sefi_tesla,actividad_detallada_bizagi_tesla,actividad_agrupada_bizagi_tesla,modelo_vehiculo_final_tesla,valor_vehiculo_final_tesla,valor_financiar_final_tesla,cuota_inicial_minima_tesla,cuota_maxima_tesla,plazo_tesla,valor_seguro_todo_riesgo_tesla,monto_max_24_meses_tesla,monto_max_36_meses_tesla,monto_max_48_meses_tesla,monto_max_60_meses_tesla,monto_max_72_meses_tesla,monto_max_84_meses_tesla,tasa_010_tesla,tasa_1120_tesla,tasa_2130_tesla,tasa_3140_tesla,tasa_4150_tesla,tasa_mayor_al_50_tesla,estado_flujo_cliente_tesla,flujo_bloqueado_tesla,motivo_bloqueo_flujo_tesla,fecha_decision_cliente_tesla,fecha_envio_formulario_aceptacion_tesla,fecha_envio_formulario_reevaluacion_tesla,submission_id_aceptacion_tesla,submission_id_reevaluacion_tesla,plazo_seleccionado_tesla,capital_financiado_tesla,cuota_total_mensual_tesla,decision_cliente"
   ) %}
 
   {% if clientes and clientes.total > 0 %}
@@ -119,6 +119,12 @@
 {% endif %}
 {% set monto_max_72_meses = monto_max_72_meses|int %}
 
+{% set monto_max_84_meses = "" %}
+{% if negocio_encontrado and negocio.monto_max_84_meses_tesla %}
+  {% set monto_max_84_meses = negocio.monto_max_84_meses_tesla|string|replace("$","")|replace(".","")|replace(",","")|trim %}
+{% endif %}
+{% set monto_max_84_meses = monto_max_84_meses|int %}
+
 {% set tasa_0_10_raw = "" %}
 {% if negocio_encontrado and negocio.tasa_010_tesla %}
   {% set tasa_0_10_raw = negocio.tasa_010_tesla|string|trim %}
@@ -154,13 +160,23 @@
   {% set respuesta_final_tesla = negocio.respuesta_final_tesla|string|trim %}
 {% endif %}
 
-{% set respuesta_es_referido = respuesta_final_tesla and 'REFERIDO' in (respuesta_final_tesla|upper|string) %}
+{% set respuesta_final_tesla_upper = respuesta_final_tesla|upper|string|trim %}
+{% set respuesta_es_referido = respuesta_final_tesla and 'REFERIDO' in respuesta_final_tesla_upper %}
+{% set respuesta_es_aprobado = respuesta_final_tesla and 'APROBADO' in respuesta_final_tesla_upper %}
+
+{% set respuesta_final_front = "" %}
+{% if respuesta_es_referido %}
+  {% set respuesta_final_front = "PREAPROBADO" %}
+{% elif respuesta_es_aprobado %}
+  {% set respuesta_final_front = "APROBADO" %}
+{% elif respuesta_final_tesla %}
+  {% set respuesta_final_front = respuesta_final_tesla %}
+{% endif %}
 
 {% set HS_FORM_ACEPTAR_APROBADO = "8a3ec946-c675-4df1-b226-bfe51c154374" %}
 {% set HS_FORM_ACEPTAR_PREAPROBADO = "11169284-eb96-4629-bc25-1d7a785ce4d0" %}
 {% set HS_FORM_REEVALUAR_APROBADO = "1c4c73b7-d601-4f89-822f-954aaa58bc06" %}
 {% set HS_FORM_REEVALUAR_PREAPROBADO = "201f2749-2257-4f5a-8355-9633d654eb9b" %}
-
 {% set HS_FORM_DESISTIR = "e827eacc-a129-4a3a-b96a-4cdbff1fcb2b" %}
 
 {% set cliente_valido = cliente_encontrado
@@ -183,16 +199,18 @@
     or monto_max_48_meses > 0
     or monto_max_60_meses > 0
     or monto_max_72_meses > 0
+    or monto_max_84_meses > 0
   )
-  and tasa_0_10_raw
-  and tasa_11_20_raw
-  and tasa_21_30_raw
-  and tasa_31_40_raw
-  and tasa_41_50_raw
-  and tasa_mayor_50_raw
+  and (
+    tasa_0_10_raw
+    or tasa_11_20_raw
+    or tasa_21_30_raw
+    or tasa_31_40_raw
+    or tasa_41_50_raw
+    or tasa_mayor_50_raw
+  )
 %}
 
-{% set respuesta_es_referido = respuesta_final_tesla and 'REFERIDO' in (respuesta_final_tesla|upper|string) %}
 {% set mostrar_oferta = (cliente_valido and negocio_valido) or (respuesta_es_referido and cliente_valido and negocio_encontrado) %}
 {% set mostrar_error = cedula_q and rn_q and not mostrar_oferta %}
 
@@ -240,12 +258,6 @@
     display: block !important;
     visibility: visible !important;
   }
-  /* Estilo añadido para integrar visualmente el logo de 'Vigilado' */
-  .logo-vigilado {
-    height: 30px; /* Ajusta la altura según prefieras */
-    vertical-align: middle; /* Centrado vertical con respecto a la línea de texto */
-    margin-top: 5px; /* Espacio sutil por encima */
-  }
 </style>
 {% endif %}
 
@@ -282,6 +294,8 @@
   </aside>
 
   <main id="main-form-content" class="main-form-content{% if mostrar_error %} showing-page-7{% endif %}">
+    <input type="hidden" id="tesla-negocio-id" value="{{ negocio.id if negocio_encontrado else '' }}">
+
     <div class="stepper-container" {% if mostrar_error %}style="display: none !important;"{% endif %}>
       <div class="step-item {% if not mostrar_oferta %}active{% else %}completed{% endif %}" id="step-1">
         <div class="step-circle">1</div>
@@ -318,22 +332,20 @@
 
         <div class="field-group">
           <label for="input-rn" class="label-with-help">
-          <span>Número RN</span>
-
-      <span class="tooltip-wrapper" tabindex="0" aria-label="Información sobre el número RN">
-        <span class="tooltip-trigger" aria-hidden="true">i</span>
-          <span class="tooltip-content" role="tooltip">
-             Es el número de radicado de tu solicitud. Lo encuentras fácilmente ingresando a tu aplicación de Tesla.
-          </span>
-       </span>
-      </label>
-
+            <span>Número RN</span>
+            <span class="tooltip-wrapper" tabindex="0" aria-label="Ayuda sobre el número RN">
+              <span class="tooltip-trigger" aria-hidden="true">i</span>
+              <span class="tooltip-content">
+                Encuentras este número en la aplicación de Tesla.
+              </span>
+            </span>
+          </label>
           <input
             id="input-rn"
             name="rn"
             type="text"
             maxlength="40"
-            placeholder="Ingresa tu número RN"
+            placeholder="Ingresa tu RN completo, ejemplo: RN123456789"
             autocomplete="off"
             value="{{ rn_q|escape_attr }}"
           >
@@ -345,7 +357,7 @@
           </button>
 
           <div id="login-error" class="{% if not mostrar_error %}hide{% endif %}" style="color: var(--rojo-santander); font-weight: bold; text-align: center; margin-top: 15px; width: 100%;">
-            No pudimos cargar tu oferta. Por favor, revisa que tus datos sean correctos o contacta a soporte.
+            Ocurrió un error al cargar la oferta. Verifica los datos o contacta soporte.
           </div>
         </div>
       </form>
@@ -354,27 +366,38 @@
     <section id="page-2" class="form-view {% if not mostrar_oferta %}hide{% endif %}">
       <div class="step2-client-info">
         <div class="dataClient col-span-2">
-          <div class="name">Nombre del titular</div>
+          <div class="name">Nombre del Titular</div>
           <div id="step2-nombre" class="value highlight-text">{{ nombre_cliente }}</div>
         </div>
 
         <div class="dataClient col-span-2">
-          <div class="name">Estado de la solicitud</div>
-          <div id="step2-respuesta-final" class="value highlight-text">{% if respuesta_final_tesla and respuesta_final_tesla|upper == 'REFERIDO' %}PRE-APROBADO{% elif respuesta_final_tesla %}{{ respuesta_final_tesla }}{% else %}—{% endif %}</div>
+          <div class="name">Respuesta final</div>
+          <div id="step2-respuesta-final" class="value highlight-text">
+            {{ respuesta_final_front if respuesta_final_front else "—" }}
+          </div>
         </div>
 
         <div class="dataClient col-span-2">
-          <div class="name">Cuota inicial mínima requerida</div>
-          <div id="display-cuota-minima-requerida" class="value highlight-text">{{ cuota_inicial_minima }}</div>
+          {% if cuota_inicial_minima > 0 %}
+            <div class="name">Cuota inicial mínima requerida</div>
+            <div id="display-cuota-minima-requerida" class="value highlight-text">
+              {{ cuota_inicial_minima }}
+            </div>
+          {% else %}
+            <div class="name">Cuota inicial</div>
+            <div id="display-cuota-minima-requerida" class="value highlight-text">
+              No tienes cuota inicial mínima requerida
+            </div>
+          {% endif %}
         </div>
 
         <div class="dataClient top-border">
-          <div class="name">Modelo del vehículo</div>
+          <div class="name">Modelo del Vehículo</div>
           <div id="step2-modelo" class="value">{{ nombre_modelo }}</div>
         </div>
 
         <div class="dataClient top-border">
-          <div class="name">Valor del vehículo</div>
+          <div class="name">Valor del Vehículo</div>
           <div id="step2-valor-carro" class="value" data-valor-vehiculo="{{ valor_vehiculo }}">
             ${{ valor_vehiculo }}
           </div>
@@ -386,7 +409,7 @@
       <div class="calculator-box">
         <div class="field-group">
           <label>
-            Cuota inicial:
+            Cuota Inicial:
             <strong id="val-range-label" style="color:var(--rojo-santander); font-size: 18px;">$0</strong>
           </label>
           <input
@@ -405,7 +428,7 @@
 
         <div class="calc-grid">
           <div class="field-group">
-            <label>Tasa aprobada (NMV)</label>
+            <label>Tasa Aprobada (NMV)</label>
             <div id="display-tasa" class="readonly-box">0.00%</div>
           </div>
           <div class="field-group">
@@ -419,58 +442,76 @@
 
         <div class="options-seguros">
           <label class="check-item">
-            <input id="check-auto" type="checkbox" checked> Seguro auto todo riesgo
+            <input id="check-auto" type="checkbox" checked>
+            <span class="label-with-help">
+              <span>Seguro Auto Todo Riesgo</span>
+              <span class="tooltip-wrapper" tabindex="0" aria-label="Información sobre seguro auto">
+                <span class="tooltip-trigger" aria-hidden="true">i</span>
+                <span class="tooltip-content">
+                  Cotizado con Seguros AXA Colpatria en el Producto Plus + Asistencia VIP, Tarifa vigente hasta el 30 de junio de 2026.
+                </span>
+              </span>
+            </span>
           </label>
+
           <label class="check-item">
-            <input id="check-desempleo" type="checkbox" checked> Seguro desempleo
+            <input id="check-desempleo" type="checkbox" checked> Seguro Desempleo
           </label>
+        </div>
+
+        <div class="disclaimer-box" aria-label="Condiciones de la simulación">
+          <div class="disclaimer-item">
+            <span class="disclaimer-bullet">•</span>
+            <p>Recuerda que tu cuota inicial corresponde únicamente al vehículo. Los valores por concepto de matrícula, SOAT y demás trámites te los confirmará el equipo de Tesla más adelante.</p>
+          </div>
+          <div class="disclaimer-item">
+            <span class="disclaimer-bullet">•</span>
+            <p>Los seguros se muestran como prima mensual y no generan intereses dentro de la simulación.</p>
+          </div>
+          <div class="disclaimer-item">
+            <span class="disclaimer-bullet">•</span>
+            <p>La tasa se expresa en términos Nominal Mes Vencida (NMV) y refleja la oferta aprobada exclusivamente para desembolsos efectuados en marzo de 2026.</p>
+          </div>
+          <div class="disclaimer-item">
+            <span class="disclaimer-bullet">•</span>
+            <p>Las condiciones están sujetas a evaluación y la tasa final puede presentar variaciones.</p>
+          </div>
+          <div class="disclaimer-item">
+            <span class="disclaimer-bullet">•</span>
+            <p>La simulación está sujeta a validación final de políticas, disponibilidad y condiciones comerciales vigentes.</p>
+          </div>
         </div>
       </div>
 
       <div class="summary-wrapper">
         <div class="resumen-header">
-          <span>Valor a financiar (capital):</span>
+          <span>Valor a Financiar (Capital):</span>
           <strong id="lbl-capital">$0</strong>
         </div>
         <table class="summary-table">
           <tbody>
             <tr>
-              <td class="label">Cuota base (capital + interés)</td>
+              <td class="label">Cuota Base (Capital + Interés)</td>
               <td class="value" id="res-base">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro auto todo riesgo</td>
+              <td class="label">Seguro Auto Todo Riesgo</td>
               <td class="value" id="res-auto">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro de vida (incluido)</td>
+              <td class="label">Seguro de Vida (Incluido)</td>
               <td class="value" id="res-vida">$0</td>
             </tr>
             <tr>
-              <td class="label">Seguro desempleo</td>
+              <td class="label">Seguro Desempleo</td>
               <td class="value" id="res-desempleo">$0</td>
             </tr>
             <tr class="total">
-              <td class="label">Cuota total mensual estimada</td>
+              <td class="label">Cuota Total Mensual</td>
               <td class="value total-val" id="res-total">$0</td>
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <div class="disclaimer-box" aria-label="Condiciones de la simulación">
-        <div class="disclaimer-item">
-          <span class="disclaimer-bullet">•</span>
-          <p>El valor de los seguros corresponde a la prima mensual y no te genera intereses.</p>
-        </div>
-        <div class="disclaimer-item">
-          <span class="disclaimer-bullet">•</span>
-          <p>La tasa de interés mostrada es el valor exacto aprobado exclusivamente para ti.</p>
-        </div>
-        <div class="disclaimer-item">
-          <span class="disclaimer-bullet">•</span>
-          <p>Esta simulación está sujeta a validación final, disponibilidad y políticas de crédito vigentes.</p>
-        </div>
       </div>
 
       <div id="general-config-error" class="page-alert page-alert--error hide" style="margin-top: 20px;">
@@ -496,7 +537,7 @@
       </div>
 
       <p id="page-3-description" class="page3-description">
-        Completa la información requerida para continuar con tu proceso.
+        Continúa registrando la información necesaria para obtener tu crédito de vehículo.
       </p>
 
       <div id="accept-form-config-error" class="page-alert page-alert--error hide">
@@ -504,10 +545,18 @@
         <p id="accept-form-error-detail" class="page-alert-detail hide" style="margin-top: 8px; font-size: 0.9em; word-break: break-all;"></p>
       </div>
 
+      <div id="accept-form-loading" class="form-loading-state hide" aria-live="polite">
+        <div class="form-loading-card">
+          <div class="form-loading-spinner"></div>
+          <p class="form-loading-title">Estamos cargando tu formulario</p>
+          <p class="form-loading-text">Esto puede tardar unos segundos.</p>
+        </div>
+      </div>
+
       <div id="accept-form-container" class="hide">
         <div
           id="accept-form-frame"
-          class="hs-form-frame"
+          class="tesla-form-frame"
           data-region="na1"
           data-form-id=""
           data-portal-id="44539823">
@@ -517,21 +566,29 @@
 
     <section id="page-4" class="form-view hide">
       <div class="titleLogin">
-        <h3>RE-EVALUAR CUOTA INICIAL</h3>
+        <h3>RE-EVALUAR CUOTA INICIAL CRÉDITO</h3>
       </div>
 
       <p class="page3-description">
-        Completa el formulario para solicitar una re-evaluación de tu cuota inicial.
+        Completa el formulario para solicitar la re-evaluación de tu cuota inicial.
       </p>
 
       <div id="reevaluar-form-config-error" class="page-alert page-alert--error hide">
         El formulario de re-evaluación no se pudo cargar.
       </div>
 
+      <div id="reevaluar-form-loading" class="form-loading-state hide" aria-live="polite">
+        <div class="form-loading-card">
+          <div class="form-loading-spinner"></div>
+          <p class="form-loading-title">Estamos cargando tu formulario</p>
+          <p class="form-loading-text">Esto puede tardar unos segundos.</p>
+        </div>
+      </div>
+
       <div id="reevaluar-form-container" class="hide">
         <div
           id="reevaluar-form-frame"
-          class="hs-form-frame"
+          class="tesla-form-frame"
           data-region="na1"
           data-form-id=""
           data-portal-id="44539823">
@@ -541,26 +598,34 @@
 
     <section id="page-5" class="form-view hide">
       <div class="titleLogin">
-        <h3>Has declinado la oferta</h3>
+        <h3>Rechazo de Oferta Santander</h3>
       </div>
 
-      <p class="page3-description">
-        Entendemos que no desees continuar en este momento. Si cambias de opinión más adelante, aquí estaremos para acompañarte.
+      <p class="page3-description" style="text-align: center; color: var(--gris-medio); line-height: 1.5;">
+        Lamentamos que no aceptes la oferta. Te esperamos para una próxima oportunidad.
       </p>
 
       <div id="desistir-form-config-error" class="page-alert page-alert--error hide">
         El formulario de desistimiento no se pudo cargar.
       </div>
 
+      <div id="desistir-form-loading" class="form-loading-state hide" aria-live="polite">
+        <div class="form-loading-card">
+          <div class="form-loading-spinner"></div>
+          <p class="form-loading-title">Estamos cargando tu formulario</p>
+          <p class="form-loading-text">Esto puede tardar unos segundos.</p>
+        </div>
+      </div>
+
       <div id="desistir-form-container" class="hide">
         <div
           id="desistir-form-frame"
-          class="hs-form-frame"
+          class="tesla-form-frame"
           data-region="na1"
-          data-form-id="{{ HS_FORM_DESISTIR }}"
+          data-form-id=""
           data-portal-id="44539823">
         </div>
-       </div>
+      </div>
 
       <div class="contentButton" style="margin-top: 25px; justify-content: center;">
         <button type="button" id="btn-volver-inicio" class="btnPrimario" onclick="if(window.TeslaIrASeccion1) window.TeslaIrASeccion1();">
@@ -571,11 +636,11 @@
 
     <section id="page-6" class="form-view hide">
       <div class="titleLogin">
-        <h3 id="blocked-flow-title">Tu solicitud ya está en proceso</h3>
+        <h3 id="blocked-flow-title">TU SOLICITUD SIGUE EN PROCESO</h3>
       </div>
 
       <p id="blocked-flow-description" class="page3-description">
-        Detectamos que ya realizaste este paso previamente, por lo que no es necesario que vuelvas a llenar la información.
+        Ya registramos tu gestión anterior. En este momento no es necesario volver a diligenciar el formulario.
       </p>
 
       <div class="summary-wrapper" style="margin-top: 20px;">
@@ -594,26 +659,24 @@
       </div>
     </section>
 
-    <!--<pre id="tesla-debug-log"
-    style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
-    Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
-    </pre>-->
-
     <section id="page-7" class="form-view {% if not mostrar_error %}hide{% endif %}" {% if mostrar_error %}style="display: block !important;"{% endif %}>
       <div class="titleLogin"><h3>Ha ocurrido un error</h3></div>
-      <p class="page3-description">No pudimos cargar la información solicitada. Intenta de nuevo o contacta soporte si el problema continúa.</p>
+      <p class="page3-description">No pudimos cargar la información solicitada. Por favor intenta de nuevo o contacta a soporte si el problema continúa.</p>
       <div class="contentButton" style="margin-top: 25px; flex-direction: column;">
-        <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">VOLVER A INTENTAR</a>
+        <a href="{{ request.path }}" class="btnPrimario" style="display: block; width: 100%; text-decoration: none; text-align: center; box-sizing: border-box;">Volver a intentar</a>
       </div>
     </section>
-    <!--
+
     <pre id="tesla-debug-log" style="white-space: pre-wrap; background: #111; color: #0f0; padding: 12px; margin-top: 20px; border: 1px solid #333; font-size: 12px; overflow:auto; max-height: 450px;">=== TESLA DEBUG LOG ===
-        Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
-    </pre>-->
+Página inicial (servidor): {{ 7 if mostrar_error else 1 }} | mostrar_error={{ mostrar_error }} | mostrar_oferta={{ mostrar_oferta }}
+cliente_encontrado={{ cliente_encontrado }} | negocio_encontrado={{ negocio_encontrado }}
+respuesta_final_tesla_raw={{ respuesta_final_tesla }}
+respuesta_final_front={{ respuesta_final_front }}
+negocio_id={{ negocio.id if negocio_encontrado else "" }}
+cliente_id={{ cliente.id if cliente_encontrado else "" }}
+</pre>
   </main>
 </section>
-
-
 
 <div id="tesla-confirm-modal" class="modal-overlay hide" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="tesla-confirm-title">
@@ -622,11 +685,11 @@
     </div>
 
     <div class="modal-body">
-      <p>Estás a un paso de tener tu Tesla. Confirma las condiciones de tu oferta para continuar.</p>
+      <p>Estás a punto de aceptar la oferta con la configuración actual.</p>
 
       <div class="modal-summary">
         <div class="modal-summary-row">
-          <span>Estado</span>
+          <span>Respuesta final</span>
           <strong id="modal-respuesta-final">—</strong>
         </div>
         <div class="modal-summary-row">
@@ -663,11 +726,16 @@
   </div>
 </div>
 
-
 <footer class="footer-santander">
   <div class="nav-container">
-    <img src="https://experiencia.santanderconsumer.co/hubfs/GP_Colombia/Vigilados-1.png" alt="Vigilado Superintendencia Financiera de Colombia" class="logo-vigilado">
-    <p>Banco Santander Colombia S.A. Todos los derechos reservados.</p>
+    <img
+      src="https://experiencia.santanderconsumer.co/hubfs/GP_Colombia/Vigilados-1.png"
+      alt="Vigilado Superintendencia Financiera de Colombia"
+      class="logo-vigilado"
+    >
+    <p>
+     Banco Santander Colombia S.A. Todos los derechos reservados.<br>
+    </p>
   </div>
 </footer>
 
@@ -677,11 +745,11 @@
   window.TESLA_CONFIG = {
     mostrarOferta: {{ "true" if mostrar_oferta else "false" }},
     mostrarError: {{ "true" if mostrar_error else "false" }},
-    esReferido: {{ "true" if respuesta_final_tesla and 'REFERIDO' in (respuesta_final_tesla|upper|string) else "false" }},
+    esReferido: {{ "true" if respuesta_es_referido else "false" }},
 
     clienteId: "{{ cliente.id if cliente_encontrado else '' }}",
     negocioId: "{{ negocio.id if negocio_encontrado else '' }}",
-    respuestaFinalTesla: "{% if respuesta_es_referido %}PREAPROBADO{% else %}{{ respuesta_final_tesla|escapejs }}{% endif %}",
+    respuestaFinalTesla: "{{ respuesta_final_front|escapejs }}",
 
     valorVehiculo: {{ valor_vehiculo }},
     valorFinanciar: {{ valor_financiar }},
@@ -704,7 +772,8 @@
       "36": {{ monto_max_36_meses }},
       "48": {{ monto_max_48_meses }},
       "60": {{ monto_max_60_meses }},
-      "72": {{ monto_max_72_meses }}
+      "72": {{ monto_max_72_meses }},
+      "84": {{ monto_max_84_meses }}
     },
 
     nodo: {{ cliente.nodo_tesla if cliente_encontrado and cliente.nodo_tesla else 0 }},
@@ -722,25 +791,20 @@
       motivoBloqueoFlujoTesla: "{{ negocio.motivo_bloqueo_flujo_tesla|escapejs if negocio_encontrado and negocio.motivo_bloqueo_flujo_tesla else '' }}"
     },
 
-    decisionCliente: "{{ negocio.decision_cliente|escapejs if negocio_encontrado and negocio.decision_cliente else '' }}",
-
     debug: true,
 
     forms: {
       aceptar: {
         aprobado: "{{ HS_FORM_ACEPTAR_APROBADO|escapejs }}",
-        preaprobado: "{{ HS_FORM_ACEPTAR_PREAPROBADO|escapejs }}",
-        referido: "{{ HS_FORM_ACEPTAR_PREAPROBADO|escapejs }}"
+        preaprobado: "{{ HS_FORM_ACEPTAR_PREAPROBADO|escapejs }}"
       },
-      reevaluarAprobado: "{{ HS_FORM_REEVALUAR_APROBADO|escapejs }}",
-      reevaluarPreaprobado: "{{ HS_FORM_REEVALUAR_PREAPROBADO|escapejs }}",
+      reevaluar: {
+        aprobado: "{{ HS_FORM_REEVALUAR_APROBADO|escapejs }}",
+        preaprobado: "{{ HS_FORM_REEVALUAR_PREAPROBADO|escapejs }}"
+      },
       desistir: "{{ HS_FORM_DESISTIR|escapejs }}"
     },
 
-    // Para que los datos lleguen al objeto Negocios TESLA: crear workflow en HubSpot
-    // que se dispare con "Form submission" del formulario 2-59067506 y actualice
-    // el registro de Negocios TESLA (buscar por negocio_id_tesla) con los campos
-    // cuota_inicial_seleccionada, tasa_selecionada, plazo_seleccionado_tesla, decision_cliente.
     persistence: {
       endpointUrl: "https://tesla-vercel-api.vercel.app/api/update-negocio-tesla",
       enabled: true,
@@ -752,7 +816,6 @@
   window.TeslaIrASeccion1 = function () {
     var main = document.getElementById('main-form-content');
     if (!main) return;
-
     var ids = ['page-1', 'page-2', 'page-3', 'page-4', 'page-5', 'page-6', 'page-7'];
     for (var i = 0; i < ids.length; i++) {
       var el = document.getElementById(ids[i]);
@@ -761,29 +824,24 @@
         el.style.removeProperty('display');
       }
     }
-
     var page1 = document.getElementById('page-1');
     if (page1) {
       page1.classList.remove('hide');
       page1.style.removeProperty('display');
     }
-
     main.classList.remove('showing-page-7');
-
     var stepper = main.querySelector('.stepper-container');
     if (stepper) {
       stepper.classList.remove('hide');
       stepper.style.removeProperty('display');
     }
-
     window.scrollTo(0, 0);
   };
 </script>
 
-<script src="https://js.hsforms.net/forms/embed/44539823.js" defer></script>
-<script src="{{ get_asset_url('/Tesla/js/tesla-rate-policy.js') }}"></script>
-<script src="{{ get_asset_url('/Tesla/js/tesla-pricing-engine.js') }}"></script>
-<script src="{{ get_asset_url('/Tesla/js/tesla-landing.js') }}"></script>
+<script src="{{ get_asset_url('/Tesla JJC/js/tesla-rate-policy.js') }}?v=merged-v2"></script>
+<script src="{{ get_asset_url('/Tesla JJC/js/tesla-pricing-engine.js') }}?v=merged-v2"></script>
+<script src="{{ get_asset_url('/Tesla JJC/js/tesla-landing.js') }}?v=merged-v3-fast-loader"></script>
 
 </body>
 </html>
