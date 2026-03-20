@@ -1,7 +1,7 @@
 (function (window) {
   'use strict';
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
 
   var CONFIG = {
     commercialDiscountLifeNMV: 0.0005,
@@ -12,7 +12,6 @@
     highScoreThreshold: 950,
     fundingScoreThreshold: 800,
 
-    // No incluir 84 si no está parametrizado realmente.
     allowedTerms: [24, 36, 48, 60, 72],
 
     minFinancedAmount: 15000000,
@@ -196,6 +195,15 @@
     { bucketCuota: 'Mayor a 80%', bucketScore: '980 - 1000', Empleado: 0.0273, Independiente: 0.0273 }
   ];
 
+  function round2(n) {
+    var value = Number(n) || 0;
+    return Math.round(value * 100) / 100;
+  }
+
+  function normalizeRateDecimal(n) {
+    return Number((round2((Number(n) || 0) * 100) / 100).toFixed(4));
+  }
+
   function toNumber(value) {
     if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
     if (value === null || typeof value === 'undefined') return NaN;
@@ -221,7 +229,7 @@
     if (!Number.isFinite(pct) || pct < 0) return null;
     if (pct <= 0.10) return '0 a 10%';
     if (pct <= 0.20) return '11% a 20%';
-    if (pct <= 0.40) return '21% a 30%';
+    if (pct <= 0.40) return '21% a 30%'; // intencional: así viene la matriz productiva
     if (pct <= 0.50) return '41% a 50%';
     if (pct <= 0.60) return '51% a 60%';
     if (pct <= 0.70) return '61% a 70%';
@@ -326,8 +334,8 @@
 
     if (montoFinanciado < CONFIG.minFinancedAmount) {
       return buildError('FINANCED_AMOUNT_BELOW_MIN', 'Cuota inicial es muy alta', {
-        monto_financiado: montoFinanciado,
-        porcentaje_cuota_inicial: porcentajeCuotaInicial
+        monto_financiado: round2(montoFinanciado),
+        porcentaje_cuota_inicial: round2(porcentajeCuotaInicial * 100)
       });
     }
 
@@ -339,8 +347,8 @@
 
     if (montoFinanciado > montoMaximo) {
       return buildError('FINANCED_AMOUNT_ABOVE_MAX', 'Cuota inicial muy baja', {
-        monto_financiado: montoFinanciado,
-        monto_maximo: montoMaximo
+        monto_financiado: round2(montoFinanciado),
+        monto_maximo: round2(montoMaximo)
       });
     }
 
@@ -400,8 +408,7 @@
     var descuentoComercialNMV = flagOfertaScore950 ? 0 : (CONFIG.commercialDiscountLifeNMV + CONFIG.commercialDiscountEvNMV);
     var descuentoSeguroDesempleoNMV = input.seguro_desempleo_tesla ? CONFIG.unemploymentInsuranceDiscountNMV : 0;
     var descuentoSeguroTodoRiesgoNMV = input.seguro_todo_riesgo_tesla ? CONFIG.allRiskInsuranceDiscountNMV : 0;
-    var descuentoChecksNMV = descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV;
-    var descuentoTotalComercialNMV = descuentoComercialNMV + descuentoChecksNMV;
+    var descuentoTotalComercialNMV = descuentoComercialNMV + descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV;
 
     var tasaFinalPreChecksNMV;
     var tasaFinalPostChecksNMV;
@@ -409,8 +416,10 @@
 
     if (flagOfertaScore950) {
       tasaFinalPreChecksNMV = CONFIG.fixedHighScoreNMV;
-      tasaFinalPostChecksNMV = CONFIG.fixedHighScoreNMV - descuentoChecksNMV;
-      motivoTasaFinal = descuentoChecksNMV > 0 ? 'Oferta score >= 950 + Seguros opcionales' : 'Oferta score >= 950';
+      tasaFinalPostChecksNMV = CONFIG.fixedHighScoreNMV - (descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV);
+      motivoTasaFinal = (descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV) > 0
+        ? 'Oferta score >= 950 + Seguros opcionales'
+        : 'Oferta score >= 950';
     } else {
       var tasaPostChecksRawNMV = tasaBaseV2NMV - descuentoTotalComercialNMV;
       tasaFinalPreChecksNMV = tasaBaseV2NMV - descuentoComercialNMV;
@@ -420,7 +429,9 @@
         motivoTasaFinal = 'Piso comercial';
       } else {
         tasaFinalPostChecksNMV = tasaPostChecksRawNMV;
-        motivoTasaFinal = descuentoChecksNMV > 0 ? 'Descuento EV + Vida + Seguros' : 'Descuento EV + Vida';
+        motivoTasaFinal = (descuentoSeguroDesempleoNMV + descuentoSeguroTodoRiesgoNMV) > 0
+          ? 'Descuento EV + Vida + Seguros'
+          : 'Descuento EV + Vida';
       }
     }
 
@@ -428,45 +439,46 @@
       return buildError('RATE_EMPTY', 'El campo tasa se encuentra vacío.');
     }
 
-    var tasaFinalEA = Math.pow(1 + tasaFinalPostChecksNMV, 12) - 1;
+    var tasaFinalNMVNormalizada = normalizeRateDecimal(tasaFinalPostChecksNMV);
+    var tasaFinalEANormalizada = Number((Math.pow(1 + tasaFinalNMVNormalizada, 12) - 1).toFixed(6));
 
     return buildOk({
       nodo_tesla: input.nodo_tesla,
       score_tesla: input.score_tesla,
       plazo_tesla: input.plazo_tesla,
       actividad_economica_tesla: input.actividad_economica_tesla,
-      valor_vehiculo_final_tesla: input.valor_vehiculo_final_tesla,
-      cuota_inicial_seleccionada_tesla: input.cuota_inicial_seleccionada_tesla,
-      cuota_inicial_minima_tesla: input.cuota_inicial_minima_tesla,
-      monto_financiado: montoFinanciado,
-      porcentaje_cuota_inicial: porcentajeCuotaInicial,
+      valor_vehiculo_final_tesla: round2(input.valor_vehiculo_final_tesla),
+      cuota_inicial_seleccionada_tesla: round2(input.cuota_inicial_seleccionada_tesla),
+      cuota_inicial_minima_tesla: round2(input.cuota_inicial_minima_tesla),
+      monto_financiado: round2(montoFinanciado),
+      porcentaje_cuota_inicial: round2(porcentajeCuotaInicial),
       bucket_cuota_pm: bucketCuota,
       bucket_score_pm: bucketScore,
       tipo_cliente_pm: tipoCliente,
-      probabilidad_mora: probabilidadMora,
-      costo_de_fondos_nmv: costoFondosNMV,
-      fee_dealer_nmv: feeDealerNMV,
-      costo_operativo_nmv: costoOperativoNMV,
-      ica_nmv: icaNMV,
-      actividad_economica_nmv: actividadEconomicaNMV,
-      rentabilidad_nmv: rentabilidadNMV,
-      riesgo_inicial_nmv: riesgoInicialNMV,
-      tasa_usura_nmv: tasaUsuraNMV,
-      ajuste_tasa_techo_nodo_nmv: ajusteTechoNodo,
-      tasa_techo_nmv: tasaTechoNMV,
-      tasa_piso_nmv: tasaPisoNMV,
-      espacio_nmv: espacioNMV,
-      riesgo_credito_nmv: riesgoCreditoNMV,
-      tasa_modelo_bruta_nmv: tasaModeloBrutaNMV,
-      tasa_base_v2_nmv: tasaBaseV2NMV,
-      descuento_comercial_nmv: descuentoComercialNMV,
-      descuento_seguro_desempleo_nmv: descuentoSeguroDesempleoNMV,
-      descuento_seguro_todo_riesgo_nmv: descuentoSeguroTodoRiesgoNMV,
-      descuento_total_comercial_nmv: descuentoTotalComercialNMV,
-      tasa_final_pre_checks_nmv: tasaFinalPreChecksNMV,
-      tasa_final_post_checks_nmv: tasaFinalPostChecksNMV,
-      tasa_final_nmv: tasaFinalPostChecksNMV,
-      tasa_final_ea: tasaFinalEA,
+      probabilidad_mora: round2(probabilidadMora),
+      costo_de_fondos_nmv: normalizeRateDecimal(costoFondosNMV),
+      fee_dealer_nmv: normalizeRateDecimal(feeDealerNMV),
+      costo_operativo_nmv: normalizeRateDecimal(costoOperativoNMV),
+      ica_nmv: normalizeRateDecimal(icaNMV),
+      actividad_economica_nmv: normalizeRateDecimal(actividadEconomicaNMV),
+      rentabilidad_nmv: normalizeRateDecimal(rentabilidadNMV),
+      riesgo_inicial_nmv: normalizeRateDecimal(riesgoInicialNMV),
+      tasa_usura_nmv: normalizeRateDecimal(tasaUsuraNMV),
+      ajuste_tasa_techo_nodo_nmv: normalizeRateDecimal(ajusteTechoNodo),
+      tasa_techo_nmv: normalizeRateDecimal(tasaTechoNMV),
+      tasa_piso_nmv: normalizeRateDecimal(tasaPisoNMV),
+      espacio_nmv: normalizeRateDecimal(espacioNMV),
+      riesgo_credito_nmv: normalizeRateDecimal(riesgoCreditoNMV),
+      tasa_modelo_bruta_nmv: normalizeRateDecimal(tasaModeloBrutaNMV),
+      tasa_base_v2_nmv: normalizeRateDecimal(tasaBaseV2NMV),
+      descuento_comercial_nmv: normalizeRateDecimal(descuentoComercialNMV),
+      descuento_seguro_desempleo_nmv: normalizeRateDecimal(descuentoSeguroDesempleoNMV),
+      descuento_seguro_todo_riesgo_nmv: normalizeRateDecimal(descuentoSeguroTodoRiesgoNMV),
+      descuento_total_comercial_nmv: normalizeRateDecimal(descuentoTotalComercialNMV),
+      tasa_final_pre_checks_nmv: normalizeRateDecimal(tasaFinalPreChecksNMV),
+      tasa_final_post_checks_nmv: tasaFinalNMVNormalizada,
+      tasa_final_nmv: tasaFinalNMVNormalizada,
+      tasa_final_ea: tasaFinalEANormalizada,
       motivo_tasa_final: motivoTasaFinal,
       flag_segmento_fondeo_score_800: flagSegmentoFondeoScore800,
       tabla_costo_fondos_aplicada: fundingCostTableName,
